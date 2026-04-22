@@ -96,8 +96,35 @@
     border-radius: 14px; padding: 14px; cursor: pointer;
     display: grid; grid-template-columns: 1fr auto; gap: 6px 12px;
     transition: transform .08s ease;
+    position: relative;
   }
   .load-card:active { transform: scale(.995); }
+  .load-card.is-new {
+    border-color: var(--warn);
+    background: linear-gradient(135deg, rgba(245,158,11,.08), var(--panel));
+  }
+  .load-card.is-new::before {
+    content: "NEW · NEEDS DRIVER";
+    position: absolute; top: -10px; left: 12px;
+    background: var(--warn); color: #1a1004;
+    font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+    letter-spacing: .5px;
+  }
+  .new-chip { background: rgba(245,158,11,.18); color: #fbbf24; border-color: rgba(245,158,11,.45); }
+  .new-chip.active { background: var(--warn); color: #1a1004; border-color: var(--warn); }
+  .date-divider {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); font-weight: 700;
+    padding: 16px 0 4px; margin: 0;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .date-divider::after {
+    content: ""; flex: 1; height: 1px; background: var(--border);
+  }
+  .date-divider .count {
+    color: var(--muted); font-weight: 500; font-size: 11px;
+    background: var(--panel-2); padding: 2px 8px; border-radius: 4px;
+  }
   .load-card .route { grid-column: 1 / 2; font-weight: 700; font-size: 16px; line-height: 1.35; }
   .load-card .route .arrow { color: var(--muted); margin: 0 6px; }
   .load-card .meta { grid-column: 1 / 2; color: var(--muted); font-size: 13px; }
@@ -212,32 +239,93 @@
   }
   .week-label { flex: 1; text-align: center; font-weight: 700; font-size: 15px; }
 
-  /* Pay load card */
-  .pay-card {
+  /* Payroll sheet (printable table) */
+  .payroll-sheet {
     background: var(--panel); border: 1px solid var(--border);
-    border-radius: 14px; padding: 14px;
-    display: flex; flex-direction: column; gap: 8px;
+    border-radius: 14px; margin: 12px 16px 0; padding: 20px;
+    overflow-x: auto;
   }
-  .pay-card .top { display: flex; justify-content: space-between; gap: 8px; }
-  .pay-card .date-chip {
-    font-size: 11px; font-weight: 700; letter-spacing:.4px;
-    color: var(--muted); text-transform: uppercase;
+  .pay-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 20px; gap: 16px; flex-wrap: wrap;
   }
-  .pay-card .route { font-weight: 700; font-size: 15px; line-height: 1.3; }
-  .pay-card .sub { color: var(--muted); font-size: 13px; }
-  .pay-card .pay-row {
-    display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center;
-    margin-top: 2px;
+  .co-name { font-weight: 800; font-size: 20px; }
+  .co-addr { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .driver-name {
+    font-size: 20px; font-weight: 700; padding: 10px 18px;
+    background: var(--panel-2); border-radius: 8px;
+    border: 1px solid var(--border);
   }
-  .pay-card .pay-row label { margin: 0; }
-  .pay-card input.pay-input {
-    padding: 10px; background: var(--panel-2); border: 1px solid var(--border);
-    color: var(--text); border-radius: 8px; font-size: 16px; font-weight: 700;
+  .pay-table {
+    width: 100%; border-collapse: collapse; font-size: 14px;
+    table-layout: fixed;
   }
-  .pay-card textarea.note-input {
-    padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--border);
-    color: var(--text); border-radius: 8px; font-size: 13px; min-height: 40px;
-    resize: vertical;
+  .pay-table th, .pay-table td {
+    padding: 10px 8px; border: 1px solid var(--border);
+    vertical-align: top; word-wrap: break-word;
+  }
+  .pay-table th {
+    background: var(--panel-2); text-align: left; font-weight: 700;
+    text-transform: uppercase; font-size: 12px; letter-spacing: .4px;
+    color: var(--muted);
+  }
+  .pay-table tbody tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  .pay-table .date-col { font-weight: 700; white-space: normal; }
+  .pay-table .amount-col {
+    text-align: right; font-weight: 700; color: var(--accent);
+    white-space: nowrap;
+  }
+  .pay-table col.c-date    { width: 14%; }
+  .pay-table col.c-carrier { width: 16%; }
+  .pay-table col.c-pickup  { width: 15%; }
+  .pay-table col.c-deliv   { width: 15%; }
+  .pay-table col.c-comment { width: 24%; }
+  .pay-table col.c-total   { width: 16%; }
+  .pay-table input.cell-input {
+    width: 100%; padding: 6px 8px;
+    background: rgba(0,0,0,0.15); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; font-size: 14px;
+    font-family: inherit;
+  }
+  .pay-table input.pay-cell { text-align: right; font-weight: 700; color: var(--accent); }
+  .pay-table tr.extra-tr td { background: rgba(34,197,94,.05); }
+  .pay-table tr.extra-tr td:first-child { color: var(--muted); font-style: italic; }
+  .pay-table tfoot .grand-label { text-align: right; font-weight: 800; background: var(--panel-2); }
+  .pay-table tfoot .grand-amt {
+    font-weight: 800; font-size: 16px; color: var(--accent);
+    background: var(--panel-2); text-align: right;
+  }
+  .x-cell-btn {
+    background: transparent; border: none; color: var(--danger);
+    font-size: 16px; cursor: pointer; padding: 0 4px; float: right;
+  }
+  .pay-actions {
+    padding: 16px; display: flex; justify-content: center;
+  }
+  .pay-actions .btn { max-width: 300px; }
+  @media (max-width: 640px) {
+    .payroll-sheet { padding: 14px; margin: 10px; }
+    .pay-table { font-size: 12px; }
+    .pay-table th, .pay-table td { padding: 8px 5px; }
+    .pay-table input.cell-input { font-size: 12px; padding: 4px 6px; }
+    .driver-name { font-size: 16px; padding: 8px 12px; }
+    .co-name { font-size: 16px; }
+  }
+  @media print {
+    @page { margin: 0.5in; }
+    body { background: white !important; color: black !important; padding: 0 !important; }
+    .no-print, header.top, .fab, .banner, #configBanner, .toast, .modal-bg { display: none !important; }
+    .payroll-sheet { background: white !important; color: black !important; border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none; }
+    .co-name, .co-addr, .driver-name { color: black !important; }
+    .driver-name { background: transparent !important; border: 1px solid #666 !important; }
+    .pay-table th { background: #e5e5e5 !important; color: black !important; }
+    .pay-table td { border: 1px solid #666 !important; color: black !important; background: white !important; }
+    .pay-table tbody tr:nth-child(even) td { background: #f5f5f5 !important; }
+    .pay-table tr.extra-tr td { background: #f9f9e6 !important; }
+    .pay-table .amount-col, .pay-table input.pay-cell { color: black !important; }
+    .pay-table input.cell-input { background: transparent !important; border: none !important; color: black !important; padding: 0 !important; }
+    .pay-table tfoot .grand-label, .pay-table tfoot .grand-amt { background: #e5e5e5 !important; color: black !important; }
+    .x-cell-btn { display: none !important; }
   }
 
   /* Section heads in payroll */
@@ -275,6 +363,37 @@
   }
   .pay-total .total-amt { color: var(--accent); font-size: 22px; }
 
+  /* Fuel card */
+  .fuel-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px; cursor: pointer;
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 12px;
+    position: relative;
+  }
+  .fuel-card.needs-driver {
+    border-color: var(--warn);
+    background: linear-gradient(135deg, rgba(245,158,11,.08), var(--panel));
+  }
+  .fuel-card.needs-driver::before {
+    content: "NEEDS DRIVER";
+    position: absolute; top: -10px; left: 12px;
+    background: var(--warn); color: #1a1004;
+    font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+    letter-spacing: .5px;
+  }
+  .fuel-card:active { transform: scale(.995); }
+  .fuel-card .top { font-weight: 700; font-size: 15px; }
+  .fuel-card .top .vendor { color: var(--accent-2); }
+  .fuel-card .meta { color: var(--muted); font-size: 13px; }
+  .fuel-card .right {
+    text-align: right; display: flex; flex-direction: column;
+    align-items: flex-end; gap: 2px;
+  }
+  .fuel-card .total { font-weight: 800; color: var(--accent); font-size: 17px; }
+  .fuel-card .ppg { color: var(--muted); font-size: 11px; }
+  .fuel-card .gallons { color: var(--text); font-size: 13px; font-weight: 600; }
+  .fuel-card .notes { grid-column: 1 / -1; color: var(--muted); font-size: 12px; font-style: italic; }
+
   /* Loading */
   .spinner {
     width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.2);
@@ -303,6 +422,7 @@
   <div class="view-switch" role="tablist">
     <button class="vtab active" data-view="loads"   role="tab">Loads</button>
     <button class="vtab"        data-view="payroll" role="tab">Payroll</button>
+    <button class="vtab"        data-view="fuel"    role="tab">Fuel</button>
   </div>
 </header>
 
@@ -314,6 +434,7 @@
 <div id="loadsView">
   <section class="stats" id="stats"></section>
   <div class="filters" id="filters">
+    <button class="chip new-chip" data-filter="new">⭐ New (needs driver)</button>
     <button class="chip active" data-filter="week">This Week</button>
     <button class="chip" data-filter="all">All</button>
     <button class="chip" data-filter="Booked">Booked</button>
@@ -328,21 +449,73 @@
 
 <!-- ================== PAYROLL VIEW ================== -->
 <div id="payrollView" style="display:none">
-  <section class="stats" id="payStats"></section>
-  <div class="week-nav">
+  <div class="week-nav no-print">
     <button class="icon-btn" id="btnWeekPrev" aria-label="Previous week">◀</button>
     <div class="week-label" id="weekLabel">—</div>
     <button class="icon-btn" id="btnWeekNext" aria-label="Next week">▶</button>
     <button class="icon-btn" id="btnWeekToday" title="This week">●</button>
   </div>
-  <div class="filters" id="driverChips"></div>
-  <main class="list" id="payList"></main>
-  <div class="section-head">
+  <div class="filters no-print" id="driverChips"></div>
+
+  <div class="payroll-sheet">
+    <div class="pay-header">
+      <div>
+        <div class="co-name">Hch Logistics, LLC</div>
+        <div class="co-addr">7192 Allegheny Dr, Frederick, MD 21702</div>
+      </div>
+      <div class="driver-name" id="driverNameDisplay">—</div>
+    </div>
+    <table class="pay-table">
+      <colgroup>
+        <col class="c-date" />
+        <col class="c-carrier" />
+        <col class="c-pickup" />
+        <col class="c-deliv" />
+        <col class="c-comment" />
+        <col class="c-total" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Carrier</th>
+          <th>Pickup</th>
+          <th>Delivery</th>
+          <th>Comments</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="payTbody"></tbody>
+      <tfoot>
+        <tr id="payGrandRow">
+          <td colspan="4"></td>
+          <td class="grand-label">Total</td>
+          <td class="grand-amt" id="payGrandTotal">$0.00</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="section-head no-print">
     <div>Extra compensation / deductions</div>
     <button class="tiny-btn" id="btnAddExtra">+ Add</button>
   </div>
-  <div class="list" id="extrasList" style="padding-top:0"></div>
-  <div class="pay-total" id="payTotal"></div>
+  <div class="list no-print" id="extrasList" style="padding-top:0"></div>
+
+  <div class="pay-actions no-print">
+    <button class="btn btn-secondary" id="btnPrint">Print / Save PDF</button>
+  </div>
+</div>
+
+<!-- ================== FUEL VIEW ================== -->
+<div id="fuelView" style="display:none">
+  <section class="stats" id="fuelStats"></section>
+  <div class="week-nav">
+    <button class="icon-btn" id="btnFuelWeekPrev" aria-label="Previous week">◀</button>
+    <div class="week-label" id="fuelWeekLabel">—</div>
+    <button class="icon-btn" id="btnFuelWeekNext" aria-label="Next week">▶</button>
+    <button class="icon-btn" id="btnFuelWeekToday" title="This week">●</button>
+  </div>
+  <main class="list" id="fuelList"></main>
 </div>
 
 <button class="fab" id="btnAdd" aria-label="Add load">+</button>
@@ -456,6 +629,73 @@
   </div>
 </div>
 
+<!-- Add Fuel Receipt Modal -->
+<div class="modal-bg" id="modalFuel">
+  <div class="modal">
+    <button class="close" id="closeFuel" aria-label="Close">×</button>
+    <h2 id="fuelTitle">Add fuel receipt</h2>
+    <form id="fuelForm">
+      <div class="form-grid">
+        <div>
+          <label>Date</label>
+          <input name="Date" type="date" required />
+        </div>
+        <div>
+          <label>Vendor</label>
+          <input name="Vendor" placeholder="Mudflap" list="vendorList" />
+        </div>
+        <div>
+          <label>Driver</label>
+          <input name="Driver" placeholder="Driver name" list="driverList" />
+        </div>
+        <div>
+          <label>Truck #</label>
+          <input name="Truck" placeholder="101" />
+        </div>
+        <div class="full">
+          <label>Location</label>
+          <input name="Location" placeholder="Pilot — Carlisle, PA" />
+        </div>
+        <div>
+          <label>Gallons</label>
+          <input name="Gallons" type="number" step="0.01" inputmode="decimal" placeholder="85.2" id="fuelGal" />
+        </div>
+        <div>
+          <label>Total $</label>
+          <input name="TotalAmount" type="number" step="0.01" inputmode="decimal" placeholder="351.04" id="fuelTotal" required />
+        </div>
+        <div class="full" style="color:var(--muted);font-size:13px;margin:-4px 0 0">
+          <span id="fuelPpgPreview">$/gal will compute automatically</span>
+        </div>
+        <div class="full">
+          <label>Notes</label>
+          <input name="Notes" placeholder="DEF, paid by Mudflap card #5, etc." />
+        </div>
+        <input type="hidden" name="ReceiptID" />
+        <input type="hidden" name="PricePerGallon" />
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="btnCancelFuel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+      <div class="btn-row" id="fuelDeleteRow" style="display:none">
+        <button type="button" class="btn btn-danger" id="btnDeleteFuel">Delete receipt</button>
+      </div>
+    </form>
+    <datalist id="vendorList">
+      <option value="Mudflap"></option>
+      <option value="Pilot"></option>
+      <option value="Loves"></option>
+      <option value="TA / Petro"></option>
+      <option value="Comdata"></option>
+      <option value="EFS"></option>
+      <option value="Sheetz"></option>
+      <option value="Wawa"></option>
+      <option value="Speedway"></option>
+    </datalist>
+  </div>
+</div>
+
 <!-- Add Extra (payroll compensation/deduction) Modal -->
 <div class="modal-bg" id="modalExtra">
   <div class="modal">
@@ -538,14 +778,18 @@ const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyGK5qc0wPK2ndj
 let STATE = {
   apiUrl: localStorage.getItem(LS_KEY_API) || DEFAULT_API_URL,
   apiToken: localStorage.getItem(LS_KEY_TOKEN) || "",
-  view: "loads",           // "loads" | "payroll"
+  view: "loads",           // "loads" | "payroll" | "fuel"
   filter: "week",
   loads: [],
   extras: [],
+  fuel: [],
   loading: false,
   // Payroll view state
-  payDriver: "",           // currently selected driver
-  payWeekStart: null,      // Date object for Friday start
+  payDriver: "",
+  payWeekStart: null,
+  // Fuel view state
+  fuelDriver: "all",       // "all" or driver name
+  fuelWeekStart: null,
 };
 
 /* ---- Demo data (shown if no API URL is configured) ---- */
@@ -641,17 +885,20 @@ async function fetchLoads(){
   if (!STATE.apiUrl){
     STATE.loads = loadCache() || DEMO_LOADS.slice();
     STATE.extras = [];
+    STATE.fuel = [];
     render();
     return;
   }
   STATE.loading = true; renderStatsLoading();
   try {
-    const [loadsResp, extrasResp] = await Promise.all([
+    const [loadsResp, extrasResp, fuelResp] = await Promise.all([
       api("list"),
-      api("listExtras").catch(() => ({ extras: [] }))
+      api("listExtras").catch(() => ({ extras: [] })),
+      api("listFuel").catch(() => ({ fuel: [] }))
     ]);
     STATE.loads = loadsResp.loads || [];
     STATE.extras = extrasResp.extras || [];
+    STATE.fuel = fuelResp.fuel || [];
     saveCache(STATE.loads);
   } catch (e){
     showToast("Couldn't fetch: " + e.message, true);
@@ -659,6 +906,23 @@ async function fetchLoads(){
   } finally {
     STATE.loading = false; render();
   }
+}
+
+async function saveFuel(receipt){
+  if (!STATE.apiUrl){
+    if (!receipt.ReceiptID) receipt.ReceiptID = "f_" + Date.now().toString(36);
+    const i = STATE.fuel.findIndex(f => f.ReceiptID === receipt.ReceiptID);
+    if (i >= 0) STATE.fuel[i] = receipt; else STATE.fuel.push(receipt);
+    render(); showToast("Saved (demo mode)"); return;
+  }
+  try { await api("upsertFuel", { receipt }); await fetchLoads(); showToast("Receipt saved"); }
+  catch(e){ showToast("Save failed: " + e.message, true); }
+}
+async function deleteFuelReceipt(receiptID){
+  if (!confirm("Delete this fuel receipt?")) return;
+  if (!STATE.apiUrl){ STATE.fuel = STATE.fuel.filter(f => f.ReceiptID !== receiptID); render(); return; }
+  try { await api("deleteFuel", { ReceiptID: receiptID }); await fetchLoads(); }
+  catch(e){ showToast("Delete failed: " + e.message, true); }
 }
 
 async function saveExtra(extra){
@@ -724,18 +988,24 @@ function statusClass(s){ return (s||"").toLowerCase().replace(/\s+/g,"-"); }
 
 function render(){
   $("#configBanner").style.display = STATE.apiUrl ? "none" : "";
-  // View toggle visibility
-  const loadsView = $("#loadsView"), payrollView = $("#payrollView");
+  const loadsView = $("#loadsView"), payrollView = $("#payrollView"), fuelView = $("#fuelView");
+  loadsView.style.display = payrollView.style.display = fuelView.style.display = "none";
   if (STATE.view === "payroll"){
-    loadsView.style.display = "none";
     payrollView.style.display = "";
     renderPayroll();
+  } else if (STATE.view === "fuel"){
+    fuelView.style.display = "";
+    renderFuel();
   } else {
     loadsView.style.display = "";
-    payrollView.style.display = "none";
     renderStats();
     renderList();
   }
+  // Update FAB label
+  const fab = $("#btnAdd");
+  if (STATE.view === "fuel") fab.setAttribute("aria-label","Add fuel receipt");
+  else if (STATE.view === "payroll") fab.setAttribute("aria-label","Add load");
+  else fab.setAttribute("aria-label","Add load");
   populateDriverDatalist();
 }
 
@@ -755,16 +1025,17 @@ function renderStats(){
   const activeRevenue = STATE.loads
     .filter(l => ["Booked","Dispatched","In Transit","Delivered","Invoiced"].includes(l.Status))
     .reduce((a,l)=> a + (Number(l.Rate)||0), 0);
+  const newCount = STATE.loads.filter(isNewFromGmail).length;
   $("#stats").innerHTML = `
+    <div class="stat" ${newCount>0?'style="border-color:var(--warn);cursor:pointer" onclick="document.querySelector(\'.new-chip\').click()"':''}>
+      <div class="label" ${newCount>0?'style="color:var(--warn)"':''}>⭐ New from Gmail</div>
+      <div class="value" ${newCount>0?'style="color:var(--warn)"':''}>${newCount}</div>
+      <div class="sub">need driver</div>
+    </div>
     <div class="stat">
       <div class="label">This Week</div>
       <div class="value">${weekLoads.length}</div>
-      <div class="sub">loads</div>
-    </div>
-    <div class="stat">
-      <div class="label">Week Revenue</div>
-      <div class="value money">${fmt$(weekRev)}</div>
-      <div class="sub">booked this week</div>
+      <div class="sub">${fmt$(weekRev)}</div>
     </div>
     <div class="stat">
       <div class="label">In Transit</div>
@@ -779,42 +1050,71 @@ function renderStats(){
   `;
 }
 
+function isNewFromGmail(l){
+  return !l.Driver && l.Source && String(l.Source).toLowerCase().startsWith("email:");
+}
+
 function renderList(){
   const list = $("#list");
   let filtered = STATE.loads.slice();
   if (STATE.filter === "week"){
     filtered = filtered.filter(inWeek);
+  } else if (STATE.filter === "new"){
+    filtered = filtered.filter(isNewFromGmail);
   } else if (STATE.filter !== "all"){
     filtered = filtered.filter(l => l.Status === STATE.filter);
   }
+  // Always sort by pickup date desc, then created date desc
   filtered.sort((a,b) => (b.PickupDate||"").localeCompare(a.PickupDate||"") || (b.CreatedAt||"").localeCompare(a.CreatedAt||""));
 
   if (!filtered.length){
-    list.innerHTML = `<div class="empty">
-      <div style="font-size:30px;margin-bottom:6px">🚛</div>
-      <div><b>No loads yet</b></div>
-      <div style="margin-top:6px">Tap <b>+</b> to add one.</div>
-    </div>`;
+    if (STATE.filter === "new"){
+      list.innerHTML = `<div class="empty">
+        <div style="font-size:30px;margin-bottom:6px">✅</div>
+        <div><b>All caught up.</b></div>
+        <div style="margin-top:6px">Every email-pulled load has a driver assigned.</div>
+      </div>`;
+    } else {
+      list.innerHTML = `<div class="empty">
+        <div style="font-size:30px;margin-bottom:6px">🚛</div>
+        <div><b>No loads yet</b></div>
+        <div style="margin-top:6px">Tap <b>+</b> to add one.</div>
+      </div>`;
+    }
     return;
   }
 
-  list.innerHTML = filtered.map(l => {
+  // Group by pickup date (YYYY-MM-DD) so dividers separate days
+  let html = "";
+  let lastDateKey = null;
+  filtered.forEach(l => {
+    const key = (l.PickupDate || "").slice(0,10) || "no-date";
+    if (key !== lastDateKey){
+      lastDateKey = key;
+      const label = key === "no-date" ? "No pickup date set" :
+        new Date(key + "T12:00").toLocaleDateString(undefined, {weekday:"long", month:"short", day:"numeric", year:"numeric"});
+      const sameDayCount = filtered.filter(x => (x.PickupDate||"").slice(0,10) === key).length;
+      html += `<div class="date-divider">${label}<span class="count">${sameDayCount} load${sameDayCount===1?"":"s"}</span></div>`;
+    }
     const routeOrigin = [l.OriginCity, l.OriginState].filter(Boolean).join(", ");
     const routeDest   = [l.DestCity, l.DestState].filter(Boolean).join(", ");
     const broker = l.Broker ? l.Broker + " · " : "";
     const pick = l.PickupDate ? "PU " + fmtDate(l.PickupDate) : "";
     const deli = l.DeliveryDate ? "DEL " + fmtDate(l.DeliveryDate) : "";
-    return `
-      <div class="load-card" data-id="${l.LoadID}">
-        <div class="route">${routeOrigin || "—"}<span class="arrow">→</span>${routeDest || "—"}</div>
-        <div class="meta">${broker}#${l.LoadNumber || "—"} ${pick?" · "+pick:""}${deli?" · "+deli:""}</div>
+    const driverTag = l.Driver ? ` · 👤 ${escapeHtml(l.Driver)}` : "";
+    const newClass = isNewFromGmail(l) ? " is-new" : "";
+    html += `
+      <div class="load-card${newClass}" data-id="${l.LoadID}">
+        <div class="route">${escapeHtml(routeOrigin || "—")}<span class="arrow">→</span>${escapeHtml(routeDest || "—")}</div>
+        <div class="meta">${escapeHtml(broker)}#${escapeHtml(l.LoadNumber || "—")} ${pick?" · "+pick:""}${deli?" · "+deli:""}${driverTag}</div>
         <div class="right">
           <div class="rate">${fmt$(l.Rate)}</div>
-          <span class="status ${statusClass(l.Status)}">${l.Status || "Booked"}</span>
+          <span class="status ${statusClass(l.Status)}">${escapeHtml(l.Status || "Booked")}</span>
         </div>
       </div>
     `;
-  }).join("");
+  });
+  list.innerHTML = html;
   $$("#list .load-card").forEach(el => el.addEventListener("click", ()=> openDetail(el.dataset.id)));
 }
 
@@ -871,46 +1171,60 @@ function renderPayroll(){
   if (!STATE.payWeekStart) STATE.payWeekStart = weekStartFri(new Date());
   $("#weekLabel").textContent = fmtWeekLabel(STATE.payWeekStart);
 
-  // Driver chips — list all drivers + an "All" option
+  // Driver chips
   const drivers = [...new Set(STATE.loads.map(l => l.Driver).filter(Boolean))].sort();
   if (!STATE.payDriver && drivers.length) STATE.payDriver = drivers[0];
-  $("#driverChips").innerHTML = drivers.map(d =>
-    `<button class="chip ${d === STATE.payDriver ? "active" : ""}" data-driver="${d.replace(/"/g,"&quot;")}">${d}</button>`
-  ).join("") || `<div class="empty" style="flex:1">
+  $("#driverChips").innerHTML = drivers.length ? drivers.map(d =>
+    `<button class="chip ${d === STATE.payDriver ? "active" : ""}" data-driver="${d.replace(/"/g,"&quot;")}">${escapeHtml(d)}</button>`
+  ).join("") : `<div class="empty" style="flex:1">
     <div><b>No drivers yet.</b></div>
     <div style="margin-top:6px;font-size:13px">Assign a driver to any load (tap it → Edit → Driver) and they'll show up here.</div>
   </div>`;
 
-  // Filter loads for this driver + this week
+  // Driver name display at top of the payroll sheet
+  $("#driverNameDisplay").textContent = STATE.payDriver || "—";
+
+  // Filter loads for this driver + this week, sort by pickup date
   const weekLoads = STATE.loads.filter(l =>
     l.Driver === STATE.payDriver && inWeek(l, STATE.payWeekStart));
   weekLoads.sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||""));
 
-  // Load cards
-  const payList = $("#payList");
+  // Extras for this driver + week
+  const [fri, thu] = weekRange(STATE.payWeekStart);
+  const wkExtras = STATE.extras.filter(x => {
+    if (x.Driver !== STATE.payDriver) return false;
+    if (!x.Date) return false;
+    const d = new Date(x.Date);
+    return d >= fri && d <= thu;
+  }).sort((a,b) => (a.Date||"").localeCompare(b.Date||""));
+
+  // Render tbody: loads + extras
+  const tbody = $("#payTbody");
+  let rowsHtml = weekLoads.map(l => payRowHtml(l)).join("");
+  rowsHtml += wkExtras.map(x => extraRowHtml(x)).join("");
   if (!STATE.payDriver){
-    payList.innerHTML = "";
-  } else if (!weekLoads.length){
-    payList.innerHTML = `<div class="empty">
-      <div><b>No loads</b> for ${escapeHtml(STATE.payDriver)} this week.</div>
-      <div style="margin-top:6px;font-size:13px">Navigate weeks with the arrows above, or assign loads in the Loads tab.</div>
-    </div>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">Pick a driver above.</td></tr>`;
+  } else if (!weekLoads.length && !wkExtras.length){
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">
+      No loads for ${escapeHtml(STATE.payDriver)} this week. Use ◀ ▶ to change week, or assign loads in the Loads tab.
+    </td></tr>`;
   } else {
-    payList.innerHTML = weekLoads.map(l => payCardHtml(l)).join("");
+    tbody.innerHTML = rowsHtml;
   }
 
-  // Wire up the inline pay inputs & notes
-  $$(".pay-card input.pay-input").forEach(inp => {
+  // Wire up inline edits
+  $$(".pay-table input.pay-cell").forEach(inp => {
     inp.addEventListener("change", async e => {
       const id = e.currentTarget.dataset.id;
       const load = STATE.loads.find(x => x.LoadID === id);
       if (!load) return;
       load.DriverPay = e.currentTarget.value === "" ? "" : Number(e.currentTarget.value);
       await saveLoadSilently(load);
+      renderPayroll();
     });
   });
-  $$(".pay-card textarea.note-input").forEach(ta => {
-    ta.addEventListener("change", async e => {
+  $$(".pay-table input.note-cell").forEach(inp => {
+    inp.addEventListener("change", async e => {
       const id = e.currentTarget.dataset.id;
       const load = STATE.loads.find(x => x.LoadID === id);
       if (!load) return;
@@ -918,19 +1232,13 @@ function renderPayroll(){
       await saveLoadSilently(load);
     });
   });
+  $$(".x-cell-btn").forEach(b => b.addEventListener("click", ()=> deleteExtra(b.dataset.id)));
   $$("#driverChips .chip").forEach(ch => ch.addEventListener("click", ()=>{
     STATE.payDriver = ch.dataset.driver;
     renderPayroll();
   }));
 
-  // Extras for this driver + this week
-  const [fri, thu] = weekRange(STATE.payWeekStart);
-  const wkExtras = STATE.extras.filter(x => {
-    if (x.Driver !== STATE.payDriver) return false;
-    if (!x.Date) return false;
-    const d = new Date(x.Date);
-    return d >= fri && d <= thu;
-  });
+  // Empty-state extras list (below main sheet) — show a prompt or list with remove buttons
   $("#extrasList").innerHTML = wkExtras.length
     ? wkExtras.map(x => `
         <div class="extra-row">
@@ -941,42 +1249,49 @@ function renderPayroll(){
           <button class="x-btn" data-id="${x.ExtraID}" aria-label="Delete">×</button>
         </div>
       `).join("")
-    : `<div class="empty" style="padding:18px">No extras this week. Tap <b>+ Add</b> to log layover, fuel reimbursement, etc.</div>`;
+    : `<div class="empty" style="padding:18px;margin:0 16px">No extras this week. Tap <b>+ Add</b> to log layover, fuel reimbursement, etc.</div>`;
   $$("#extrasList .x-btn").forEach(b => b.addEventListener("click", ()=> deleteExtra(b.dataset.id)));
 
-  // Stats + total
+  // Grand total
   const loadPay = weekLoads.reduce((a,l) => a + (Number(l.DriverPay)||0), 0);
   const extrasPay = wkExtras.reduce((a,x) => a + (Number(x.Amount)||0), 0);
-  const total = loadPay + extrasPay;
-  $("#payStats").innerHTML = `
-    <div class="stat"><div class="label">Loads</div><div class="value">${weekLoads.length}</div></div>
-    <div class="stat"><div class="label">Load pay</div><div class="value money">${fmt$(loadPay)}</div></div>
-    <div class="stat"><div class="label">Extras</div><div class="value money">${fmt$(extrasPay)}</div></div>
-    <div class="stat"><div class="label">Blanks</div><div class="value">${weekLoads.filter(l => !l.DriverPay).length}</div></div>
-  `;
-  $("#payTotal").innerHTML = `<div>Total payroll — ${escapeHtml(STATE.payDriver || "")}</div><div class="total-amt">${fmt$(total)}</div>`;
+  $("#payGrandTotal").textContent = fmt$(loadPay + extrasPay);
 }
 
-function payCardHtml(l){
-  const dow = new Date(l.PickupDate || l.CreatedAt || Date.now()).toLocaleDateString(undefined,{weekday:"short"});
-  const route = `${l.OriginCity || "—"}${l.OriginState?", "+l.OriginState:""} → ${l.DestCity || "—"}${l.DestState?", "+l.DestState:""}`;
+function payRowHtml(l){
+  const d = new Date(l.PickupDate || l.CreatedAt || Date.now());
+  const dow = d.toLocaleDateString(undefined,{weekday:"long"});
+  const mm = (d.getMonth()+1).toString().padStart(2,"0");
+  const dd = d.getDate().toString().padStart(2,"0");
+  const origin = [l.OriginCity, l.OriginState].filter(Boolean).join(" ");
+  const dest = [l.DestCity, l.DestState].filter(Boolean).join(" ");
+  const carrier = [l.Broker, l.LoadNumber].filter(Boolean).join(" ");
   const payVal = l.DriverPay != null && l.DriverPay !== "" ? l.DriverPay : "";
   return `
-    <div class="pay-card">
-      <div class="top">
-        <div>
-          <div class="date-chip">${dow} ${fmtDate(l.PickupDate)}</div>
-          <div class="route">${escapeHtml(route)}</div>
-          <div class="sub">${escapeHtml(l.Broker || "")} · #${escapeHtml(l.LoadNumber || "—")}</div>
-        </div>
-        <div class="date-chip" style="text-align:right">${escapeHtml(l.Status || "")}</div>
-      </div>
-      <div class="pay-row">
-        <label style="align-self:center">Driver pay&nbsp;$</label>
-        <input type="number" step="0.01" inputmode="decimal" class="pay-input" data-id="${l.LoadID}" placeholder="0.00" value="${payVal}" />
-      </div>
-      <textarea class="note-input" data-id="${l.LoadID}" placeholder="Comments (layover, issues, etc.)">${escapeHtml(l.Notes || "")}</textarea>
-    </div>
+    <tr>
+      <td class="date-col"><b>${dow}</b><br>${mm}/${dd}</td>
+      <td>${escapeHtml(carrier || "—")}</td>
+      <td>${escapeHtml(origin || "—")}</td>
+      <td>${escapeHtml(dest || "—")}</td>
+      <td><input type="text" class="cell-input note-cell" data-id="${l.LoadID}" value="${escapeHtml(l.Notes||"")}" placeholder="" /></td>
+      <td class="amount-col"><input type="number" step="0.01" inputmode="decimal" class="cell-input pay-cell" data-id="${l.LoadID}" value="${payVal}" placeholder="0.00" /></td>
+    </tr>
+  `;
+}
+
+function extraRowHtml(x){
+  const d = new Date(x.Date);
+  const dow = d.toLocaleDateString(undefined,{weekday:"long"});
+  const mm = (d.getMonth()+1).toString().padStart(2,"0");
+  const dd = d.getDate().toString().padStart(2,"0");
+  return `
+    <tr class="extra-tr">
+      <td class="date-col"><b>${dow}</b><br>${mm}/${dd}</td>
+      <td colspan="4"><em>Extra:</em> ${escapeHtml(x.Note || "")}
+        <button class="x-cell-btn" data-id="${x.ExtraID}" title="Remove">×</button>
+      </td>
+      <td class="amount-col">${fmt$(x.Amount)}</td>
+    </tr>
   `;
 }
 
@@ -988,6 +1303,94 @@ async function saveLoadSilently(load){
   if (!STATE.apiUrl){ saveCache(STATE.loads); showToast("Saved"); return; }
   try { await api("upsert", { load }); showToast("Saved"); }
   catch(e){ showToast("Save failed: " + e.message, true); }
+}
+
+/* ---------------- Fuel view ---------------- */
+function renderFuel(){
+  if (!STATE.fuelWeekStart) STATE.fuelWeekStart = weekStartFri(new Date());
+  $("#fuelWeekLabel").textContent = fmtWeekLabel(STATE.fuelWeekStart);
+
+  // Filter receipts by week (no driver filter — show all)
+  const [fri, thu] = weekRange(STATE.fuelWeekStart);
+  const filtered = STATE.fuel.filter(f => {
+    if (!f.Date) return false;
+    const d = new Date(f.Date);
+    return d >= fri && d <= thu;
+  }).sort((a,b) => (b.Date||"").localeCompare(a.Date||""));
+
+  // Stats
+  const totalAmt = filtered.reduce((a,f) => a + (Number(f.TotalAmount)||0), 0);
+  const totalGal = filtered.reduce((a,f) => a + (Number(f.Gallons)||0), 0);
+  const avgPpg = totalGal > 0 ? totalAmt / totalGal : 0;
+  const needsDriverCount = filtered.filter(f => !f.Driver).length;
+  $("#fuelStats").innerHTML = `
+    <div class="stat" ${needsDriverCount>0?'style="border-color:var(--warn)"':''}>
+      <div class="label" ${needsDriverCount>0?'style="color:var(--warn)"':''}>Need driver</div>
+      <div class="value" ${needsDriverCount>0?'style="color:var(--warn)"':''}>${needsDriverCount}</div>
+      <div class="sub">tap to assign</div>
+    </div>
+    <div class="stat"><div class="label">Total spend</div><div class="value money">${fmt$(totalAmt)}</div><div class="sub">${filtered.length} receipts</div></div>
+    <div class="stat"><div class="label">Gallons</div><div class="value">${totalGal.toFixed(1)}</div><div class="sub">total</div></div>
+    <div class="stat"><div class="label">Avg $/gal</div><div class="value">${avgPpg ? "$"+avgPpg.toFixed(3) : "—"}</div><div class="sub">all vendors</div></div>
+  `;
+
+  // List
+  const list = $("#fuelList");
+  if (!filtered.length){
+    list.innerHTML = `<div class="empty">
+      <div style="font-size:30px;margin-bottom:6px">⛽</div>
+      <div><b>No receipts this week.</b></div>
+      <div style="margin-top:6px">Mudflap receipts pull automatically every hour. Tap <b>+</b> to log a non-Mudflap receipt.</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(f => {
+    const d = new Date(f.Date);
+    const dow = d.toLocaleDateString(undefined,{weekday:"short"});
+    const md = (d.getMonth()+1).toString().padStart(2,"0") + "/" + d.getDate().toString().padStart(2,"0");
+    const driverTruck = [f.Driver, f.Truck && ("Truck "+f.Truck)].filter(Boolean).join(" · ");
+    const ppg = (Number(f.PricePerGallon)||0);
+    const gal = (Number(f.Gallons)||0);
+    const needsDriver = !f.Driver;
+    return `
+      <div class="fuel-card${needsDriver?" needs-driver":""}" data-id="${f.ReceiptID}">
+        <div class="top"><span class="vendor">${escapeHtml(f.Vendor||"Mudflap")}</span> · ${escapeHtml(f.Location||"—")}</div>
+        <div class="right">
+          <div class="total">${fmt$(f.TotalAmount)}</div>
+          <div class="gallons">${gal? gal.toFixed(2)+" gal":""}</div>
+          <div class="ppg">${ppg? "$"+ppg.toFixed(3)+"/gal":""}</div>
+        </div>
+        <div class="meta">${dow} ${md} · ${needsDriver ? '<span style="color:var(--warn);font-weight:700">Tap to assign driver</span>' : escapeHtml(driverTruck)}</div>
+        ${f.Notes?`<div class="notes">${escapeHtml(f.Notes)}</div>`:""}
+      </div>
+    `;
+  }).join("");
+  $$("#fuelList .fuel-card").forEach(el => el.addEventListener("click", ()=> openFuelModal(STATE.fuel.find(f => f.ReceiptID === el.dataset.id))));
+}
+
+function openFuelModal(receipt){
+  const f = $("#fuelForm");
+  f.reset();
+  const today = new Date().toISOString().slice(0,10);
+  f.elements.Date.value = receipt?.Date || today;
+  f.elements.Vendor.value = receipt?.Vendor || "Mudflap";
+  f.elements.Driver.value = receipt?.Driver || (STATE.fuelDriver !== "all" ? STATE.fuelDriver : "");
+  f.elements.Truck.value = receipt?.Truck || "";
+  f.elements.Location.value = receipt?.Location || "";
+  f.elements.Gallons.value = receipt?.Gallons ?? "";
+  f.elements.TotalAmount.value = receipt?.TotalAmount ?? "";
+  f.elements.PricePerGallon.value = receipt?.PricePerGallon ?? "";
+  f.elements.Notes.value = receipt?.Notes || "";
+  f.elements.ReceiptID.value = receipt?.ReceiptID || "";
+  $("#fuelTitle").textContent = receipt?.ReceiptID ? "Edit fuel receipt" : "Add fuel receipt";
+  $("#fuelDeleteRow").style.display = receipt?.ReceiptID ? "" : "none";
+  updateFuelPpgPreview();
+  $("#modalFuel").classList.add("open");
+}
+function closeFuelModal(){ $("#modalFuel").classList.remove("open"); }
+function updateFuelPpgPreview(){
+  const g = Number($("#fuelGal").value)||0, t = Number($("#fuelTotal").value)||0;
+  $("#fuelPpgPreview").textContent = (g>0 && t>0) ? "→ $"+(t/g).toFixed(3)+" / gal" : "$/gal will compute automatically";
 }
 
 function openExtraModal(extra){
@@ -1006,7 +1409,10 @@ function closeExtraModal(){ $("#modalExtra").classList.remove("open"); }
 
 /* ---------------- Events ---------------- */
 function bind(){
-  $("#btnAdd").addEventListener("click", ()=> openEdit(null));
+  $("#btnAdd").addEventListener("click", ()=> {
+    if (STATE.view === "fuel") openFuelModal(null);
+    else openEdit(null);
+  });
   $("#btnSettings").addEventListener("click", openSettings);
   $("#btnRefresh").addEventListener("click", ()=> { fetchLoads(); showToast("Refreshing…"); });
 
@@ -1078,6 +1484,40 @@ function bind(){
   $("#btnAddExtra").addEventListener("click", ()=> {
     if (!STATE.payDriver){ showToast("Pick a driver first", true); return; }
     openExtraModal(null);
+  });
+  $("#btnPrint").addEventListener("click", ()=> window.print());
+
+  // Fuel modal events
+  $("#closeFuel").addEventListener("click", closeFuelModal);
+  $("#btnCancelFuel").addEventListener("click", closeFuelModal);
+  $("#fuelGal").addEventListener("input", updateFuelPpgPreview);
+  $("#fuelTotal").addEventListener("input", updateFuelPpgPreview);
+  $("#fuelForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const o = Object.fromEntries(fd.entries());
+    if (o.Gallons) o.Gallons = Number(o.Gallons);
+    if (o.TotalAmount) o.TotalAmount = Number(o.TotalAmount);
+    if (o.Gallons > 0 && o.TotalAmount > 0) o.PricePerGallon = Math.round((o.TotalAmount/o.Gallons)*1000)/1000;
+    closeFuelModal();
+    await saveFuel(o);
+  });
+  $("#btnDeleteFuel").addEventListener("click", ()=> {
+    const id = $("#fuelForm").elements.ReceiptID.value;
+    if (id){ closeFuelModal(); deleteFuelReceipt(id); }
+  });
+
+  // Fuel week nav
+  $("#btnFuelWeekPrev").addEventListener("click", ()=> {
+    const d = new Date(STATE.fuelWeekStart); d.setDate(d.getDate()-7);
+    STATE.fuelWeekStart = d; renderFuel();
+  });
+  $("#btnFuelWeekNext").addEventListener("click", ()=> {
+    const d = new Date(STATE.fuelWeekStart); d.setDate(d.getDate()+7);
+    STATE.fuelWeekStart = d; renderFuel();
+  });
+  $("#btnFuelWeekToday").addEventListener("click", ()=> {
+    STATE.fuelWeekStart = weekStartFri(new Date()); renderFuel();
   });
   $("#closeExtra").addEventListener("click", closeExtraModal);
   $("#btnCancelExtra").addEventListener("click", closeExtraModal);
