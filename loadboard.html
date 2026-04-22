@@ -192,6 +192,89 @@
   .detail-row .k { color: var(--muted); font-size: 13px; }
   .detail-row .v { text-align: right; font-weight: 600; }
 
+  /* View switch */
+  .view-switch {
+    display: flex; gap: 4px; margin-top: 10px;
+    background: var(--panel-2); padding: 4px; border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .vtab {
+    flex: 1; padding: 9px 12px; border-radius: 8px;
+    background: transparent; border: none; color: var(--muted);
+    font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .vtab.active { background: var(--text); color: #0b1220; }
+
+  /* Week nav */
+  .week-nav {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px 4px; justify-content: center;
+  }
+  .week-label { flex: 1; text-align: center; font-weight: 700; font-size: 15px; }
+
+  /* Pay load card */
+  .pay-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .pay-card .top { display: flex; justify-content: space-between; gap: 8px; }
+  .pay-card .date-chip {
+    font-size: 11px; font-weight: 700; letter-spacing:.4px;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .pay-card .route { font-weight: 700; font-size: 15px; line-height: 1.3; }
+  .pay-card .sub { color: var(--muted); font-size: 13px; }
+  .pay-card .pay-row {
+    display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center;
+    margin-top: 2px;
+  }
+  .pay-card .pay-row label { margin: 0; }
+  .pay-card input.pay-input {
+    padding: 10px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; font-size: 16px; font-weight: 700;
+  }
+  .pay-card textarea.note-input {
+    padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; font-size: 13px; min-height: 40px;
+    resize: vertical;
+  }
+
+  /* Section heads in payroll */
+  .section-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 16px 8px;
+    font-size: 13px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--muted); font-weight: 700;
+  }
+  .tiny-btn {
+    background: var(--accent); color: #062712; border: none;
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* Extra row */
+  .extra-row {
+    display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;
+    padding: 10px 12px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .extra-row .amt { font-weight: 700; color: var(--accent); }
+  .extra-row .x-btn {
+    background: transparent; border: none; color: var(--danger); font-size: 20px;
+    cursor: pointer; padding: 0 6px;
+  }
+
+  /* Payroll total */
+  .pay-total {
+    margin: 18px 16px 10px; padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(34,197,94,.15), rgba(14,165,233,.15));
+    border: 1px solid var(--accent); border-radius: 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 17px; font-weight: 800;
+  }
+  .pay-total .total-amt { color: var(--accent); font-size: 22px; }
+
   /* Loading */
   .spinner {
     width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.2);
@@ -217,26 +300,50 @@
       <button class="icon-btn" id="btnSettings" title="Settings" aria-label="Settings">⚙</button>
     </div>
   </div>
+  <div class="view-switch" role="tablist">
+    <button class="vtab active" data-view="loads"   role="tab">Loads</button>
+    <button class="vtab"        data-view="payroll" role="tab">Payroll</button>
+  </div>
 </header>
 
 <div id="configBanner" class="banner" style="display:none">
   Demo mode — no backend connected. Paste your Google Apps Script URL in ⚙ Settings to save real data.
 </div>
 
-<section class="stats" id="stats"></section>
-
-<div class="filters" id="filters">
-  <button class="chip active" data-filter="week">This Week</button>
-  <button class="chip" data-filter="all">All</button>
-  <button class="chip" data-filter="Booked">Booked</button>
-  <button class="chip" data-filter="Dispatched">Dispatched</button>
-  <button class="chip" data-filter="In Transit">In Transit</button>
-  <button class="chip" data-filter="Delivered">Delivered</button>
-  <button class="chip" data-filter="Invoiced">Invoiced</button>
-  <button class="chip" data-filter="Paid">Paid</button>
+<!-- ================== LOADS VIEW ================== -->
+<div id="loadsView">
+  <section class="stats" id="stats"></section>
+  <div class="filters" id="filters">
+    <button class="chip active" data-filter="week">This Week</button>
+    <button class="chip" data-filter="all">All</button>
+    <button class="chip" data-filter="Booked">Booked</button>
+    <button class="chip" data-filter="Dispatched">Dispatched</button>
+    <button class="chip" data-filter="In Transit">In Transit</button>
+    <button class="chip" data-filter="Delivered">Delivered</button>
+    <button class="chip" data-filter="Invoiced">Invoiced</button>
+    <button class="chip" data-filter="Paid">Paid</button>
+  </div>
+  <main class="list" id="list"></main>
 </div>
 
-<main class="list" id="list"></main>
+<!-- ================== PAYROLL VIEW ================== -->
+<div id="payrollView" style="display:none">
+  <section class="stats" id="payStats"></section>
+  <div class="week-nav">
+    <button class="icon-btn" id="btnWeekPrev" aria-label="Previous week">◀</button>
+    <div class="week-label" id="weekLabel">—</div>
+    <button class="icon-btn" id="btnWeekNext" aria-label="Next week">▶</button>
+    <button class="icon-btn" id="btnWeekToday" title="This week">●</button>
+  </div>
+  <div class="filters" id="driverChips"></div>
+  <main class="list" id="payList"></main>
+  <div class="section-head">
+    <div>Extra compensation / deductions</div>
+    <button class="tiny-btn" id="btnAddExtra">+ Add</button>
+  </div>
+  <div class="list" id="extrasList" style="padding-top:0"></div>
+  <div class="pay-total" id="payTotal"></div>
+</div>
 
 <button class="fab" id="btnAdd" aria-label="Add load">+</button>
 
@@ -302,12 +409,19 @@
 
         <div>
           <label>Driver</label>
-          <input name="Driver" placeholder="Driver name" />
+          <input name="Driver" placeholder="Driver name" list="driverList" />
         </div>
         <div>
           <label>Truck #</label>
           <input name="Truck" placeholder="101" />
         </div>
+
+        <div class="full"><hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" /></div>
+        <div>
+          <label>Driver Pay ($) <span style="font-weight:500;text-transform:none">— for payroll</span></label>
+          <input name="DriverPay" type="number" step="0.01" placeholder="leave blank to fill later" inputmode="decimal" />
+        </div>
+        <div></div>
 
         <div class="full">
           <label>Notes</label>
@@ -338,6 +452,37 @@
       <option value="Echo Global"></option>
       <option value="Landstar"></option>
     </datalist>
+    <datalist id="driverList"></datalist>
+  </div>
+</div>
+
+<!-- Add Extra (payroll compensation/deduction) Modal -->
+<div class="modal-bg" id="modalExtra">
+  <div class="modal">
+    <button class="close" id="closeExtra" aria-label="Close">×</button>
+    <h2 id="extraTitle">Add compensation</h2>
+    <form id="extraForm">
+      <div class="form-grid">
+        <div>
+          <label>Date</label>
+          <input name="Date" type="date" required />
+        </div>
+        <div>
+          <label>Amount ($)</label>
+          <input name="Amount" type="number" step="0.01" inputmode="decimal" required />
+        </div>
+        <div class="full">
+          <label>Note</label>
+          <input name="Note" placeholder="Layover Kutztown, fuel reimbursement, etc." required />
+        </div>
+        <input type="hidden" name="ExtraID" />
+        <input type="hidden" name="Driver" />
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="btnCancelExtra">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -393,9 +538,14 @@ const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyGK5qc0wPK2ndj
 let STATE = {
   apiUrl: localStorage.getItem(LS_KEY_API) || DEFAULT_API_URL,
   apiToken: localStorage.getItem(LS_KEY_TOKEN) || "",
+  view: "loads",           // "loads" | "payroll"
   filter: "week",
   loads: [],
+  extras: [],
   loading: false,
+  // Payroll view state
+  payDriver: "",           // currently selected driver
+  payWeekStart: null,      // Date object for Friday start
 };
 
 /* ---- Demo data (shown if no API URL is configured) ---- */
@@ -427,20 +577,37 @@ function $$(sel, root=document){ return [...root.querySelectorAll(sel)]; }
 function fmt$(n){ if (n==null || isNaN(n)) return "—"; return "$" + Number(n).toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:2}); }
 function fmtDate(s){ if(!s) return ""; try { const d = new Date(s); if (isNaN(d)) return s;
   return d.toLocaleDateString(undefined, {month:"short", day:"numeric"});} catch(e){ return s; } }
-function weekRange(){
-  const now = new Date();
-  const day = (now.getDay()+6)%7; // Mon=0
-  const mon = new Date(now); mon.setDate(now.getDate() - day); mon.setHours(0,0,0,0);
-  const sun = new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
-  return [mon, sun];
+// Friday-Thursday week. Pass a Date to get the Friday that starts its pay-week.
+function weekStartFri(d){
+  d = d ? new Date(d) : new Date();
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const diff = (dow - 5 + 7) % 7; // days back to Friday
+  const fri = new Date(d); fri.setDate(d.getDate() - diff); fri.setHours(0,0,0,0);
+  return fri;
 }
-function inWeek(load){
-  const [mon, sun] = weekRange();
+function weekEndThu(friStart){
+  const thu = new Date(friStart); thu.setDate(friStart.getDate() + 6); thu.setHours(23,59,59,999);
+  return thu;
+}
+function weekRange(d){
+  const fri = weekStartFri(d || new Date());
+  return [fri, weekEndThu(fri)];
+}
+function inWeek(load, ref){
+  const [fri, thu] = weekRange(ref);
   const pick = load.PickupDate ? new Date(load.PickupDate) : null;
   const deli = load.DeliveryDate ? new Date(load.DeliveryDate) : null;
-  if (pick && pick >= mon && pick <= sun) return true;
-  if (deli && deli >= mon && deli <= sun) return true;
+  if (pick && pick >= fri && pick <= thu) return true;
+  if (deli && deli >= fri && deli <= thu) return true;
   return false;
+}
+function fmtWeekLabel(fri){
+  const thu = weekEndThu(fri);
+  const sameMonth = fri.getMonth() === thu.getMonth();
+  const opts = {month:"short", day:"numeric"};
+  const a = fri.toLocaleDateString(undefined, opts);
+  const b = sameMonth ? thu.toLocaleDateString(undefined, {day:"numeric"}) : thu.toLocaleDateString(undefined, opts);
+  return a + " – " + b + ", " + thu.getFullYear();
 }
 function showToast(msg, isErr=false){
   const el = $("#toast");
@@ -473,13 +640,18 @@ async function api(action, payload={}){
 async function fetchLoads(){
   if (!STATE.apiUrl){
     STATE.loads = loadCache() || DEMO_LOADS.slice();
+    STATE.extras = [];
     render();
     return;
   }
   STATE.loading = true; renderStatsLoading();
   try {
-    const data = await api("list");
-    STATE.loads = data.loads || [];
+    const [loadsResp, extrasResp] = await Promise.all([
+      api("list"),
+      api("listExtras").catch(() => ({ extras: [] }))
+    ]);
+    STATE.loads = loadsResp.loads || [];
+    STATE.extras = extrasResp.extras || [];
     saveCache(STATE.loads);
   } catch (e){
     showToast("Couldn't fetch: " + e.message, true);
@@ -487,6 +659,26 @@ async function fetchLoads(){
   } finally {
     STATE.loading = false; render();
   }
+}
+
+async function saveExtra(extra){
+  if (!STATE.apiUrl){
+    if (!extra.ExtraID) extra.ExtraID = "x_" + Date.now().toString(36);
+    const i = STATE.extras.findIndex(x => x.ExtraID === extra.ExtraID);
+    if (i >= 0) STATE.extras[i] = extra; else STATE.extras.push(extra);
+    render(); showToast("Saved (demo mode)"); return;
+  }
+  try { await api("upsertExtra", { extra }); await fetchLoads(); showToast("Saved"); }
+  catch(e){ showToast("Save failed: " + e.message, true); }
+}
+async function deleteExtra(extraID){
+  if (!confirm("Remove this entry?")) return;
+  if (!STATE.apiUrl){
+    STATE.extras = STATE.extras.filter(x => x.ExtraID !== extraID);
+    render(); return;
+  }
+  try { await api("deleteExtra", { ExtraID: extraID }); await fetchLoads(); }
+  catch(e){ showToast("Delete failed: " + e.message, true); }
 }
 
 async function saveLoad(record){
@@ -532,8 +724,24 @@ function statusClass(s){ return (s||"").toLowerCase().replace(/\s+/g,"-"); }
 
 function render(){
   $("#configBanner").style.display = STATE.apiUrl ? "none" : "";
-  renderStats();
-  renderList();
+  // View toggle visibility
+  const loadsView = $("#loadsView"), payrollView = $("#payrollView");
+  if (STATE.view === "payroll"){
+    loadsView.style.display = "none";
+    payrollView.style.display = "";
+    renderPayroll();
+  } else {
+    loadsView.style.display = "";
+    payrollView.style.display = "none";
+    renderStats();
+    renderList();
+  }
+  populateDriverDatalist();
+}
+
+function populateDriverDatalist(){
+  const names = [...new Set(STATE.loads.map(l => l.Driver).filter(Boolean))].sort();
+  $("#driverList").innerHTML = names.map(n => `<option value="${n}"></option>`).join("");
 }
 
 function renderStatsLoading(){
@@ -615,7 +823,7 @@ function openEdit(load){
   const form = $("#editForm");
   form.reset();
   for (const k of ["LoadID","LoadNumber","Broker","OriginCity","OriginState","DestCity","DestState",
-                   "PickupDate","DeliveryDate","Rate","Status","Driver","Truck","Notes"]){
+                   "PickupDate","DeliveryDate","Rate","Status","Driver","Truck","Notes","DriverPay"]){
     const el = form.elements[k]; if (!el) continue;
     el.value = load && load[k] != null ? load[k] : "";
   }
@@ -658,6 +866,144 @@ function openSettings(){
 }
 function closeSettings(){ $("#modalSettings").classList.remove("open"); }
 
+/* ---------------- Payroll view ---------------- */
+function renderPayroll(){
+  if (!STATE.payWeekStart) STATE.payWeekStart = weekStartFri(new Date());
+  $("#weekLabel").textContent = fmtWeekLabel(STATE.payWeekStart);
+
+  // Driver chips — list all drivers + an "All" option
+  const drivers = [...new Set(STATE.loads.map(l => l.Driver).filter(Boolean))].sort();
+  if (!STATE.payDriver && drivers.length) STATE.payDriver = drivers[0];
+  $("#driverChips").innerHTML = drivers.map(d =>
+    `<button class="chip ${d === STATE.payDriver ? "active" : ""}" data-driver="${d.replace(/"/g,"&quot;")}">${d}</button>`
+  ).join("") || `<div class="empty" style="flex:1">
+    <div><b>No drivers yet.</b></div>
+    <div style="margin-top:6px;font-size:13px">Assign a driver to any load (tap it → Edit → Driver) and they'll show up here.</div>
+  </div>`;
+
+  // Filter loads for this driver + this week
+  const weekLoads = STATE.loads.filter(l =>
+    l.Driver === STATE.payDriver && inWeek(l, STATE.payWeekStart));
+  weekLoads.sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||""));
+
+  // Load cards
+  const payList = $("#payList");
+  if (!STATE.payDriver){
+    payList.innerHTML = "";
+  } else if (!weekLoads.length){
+    payList.innerHTML = `<div class="empty">
+      <div><b>No loads</b> for ${escapeHtml(STATE.payDriver)} this week.</div>
+      <div style="margin-top:6px;font-size:13px">Navigate weeks with the arrows above, or assign loads in the Loads tab.</div>
+    </div>`;
+  } else {
+    payList.innerHTML = weekLoads.map(l => payCardHtml(l)).join("");
+  }
+
+  // Wire up the inline pay inputs & notes
+  $$(".pay-card input.pay-input").forEach(inp => {
+    inp.addEventListener("change", async e => {
+      const id = e.currentTarget.dataset.id;
+      const load = STATE.loads.find(x => x.LoadID === id);
+      if (!load) return;
+      load.DriverPay = e.currentTarget.value === "" ? "" : Number(e.currentTarget.value);
+      await saveLoadSilently(load);
+    });
+  });
+  $$(".pay-card textarea.note-input").forEach(ta => {
+    ta.addEventListener("change", async e => {
+      const id = e.currentTarget.dataset.id;
+      const load = STATE.loads.find(x => x.LoadID === id);
+      if (!load) return;
+      load.Notes = e.currentTarget.value;
+      await saveLoadSilently(load);
+    });
+  });
+  $$("#driverChips .chip").forEach(ch => ch.addEventListener("click", ()=>{
+    STATE.payDriver = ch.dataset.driver;
+    renderPayroll();
+  }));
+
+  // Extras for this driver + this week
+  const [fri, thu] = weekRange(STATE.payWeekStart);
+  const wkExtras = STATE.extras.filter(x => {
+    if (x.Driver !== STATE.payDriver) return false;
+    if (!x.Date) return false;
+    const d = new Date(x.Date);
+    return d >= fri && d <= thu;
+  });
+  $("#extrasList").innerHTML = wkExtras.length
+    ? wkExtras.map(x => `
+        <div class="extra-row">
+          <div><b>${escapeHtml(x.Note || "—")}</b>
+            <div style="color:var(--muted);font-size:12px">${fmtDate(x.Date)}</div>
+          </div>
+          <div class="amt">${fmt$(x.Amount)}</div>
+          <button class="x-btn" data-id="${x.ExtraID}" aria-label="Delete">×</button>
+        </div>
+      `).join("")
+    : `<div class="empty" style="padding:18px">No extras this week. Tap <b>+ Add</b> to log layover, fuel reimbursement, etc.</div>`;
+  $$("#extrasList .x-btn").forEach(b => b.addEventListener("click", ()=> deleteExtra(b.dataset.id)));
+
+  // Stats + total
+  const loadPay = weekLoads.reduce((a,l) => a + (Number(l.DriverPay)||0), 0);
+  const extrasPay = wkExtras.reduce((a,x) => a + (Number(x.Amount)||0), 0);
+  const total = loadPay + extrasPay;
+  $("#payStats").innerHTML = `
+    <div class="stat"><div class="label">Loads</div><div class="value">${weekLoads.length}</div></div>
+    <div class="stat"><div class="label">Load pay</div><div class="value money">${fmt$(loadPay)}</div></div>
+    <div class="stat"><div class="label">Extras</div><div class="value money">${fmt$(extrasPay)}</div></div>
+    <div class="stat"><div class="label">Blanks</div><div class="value">${weekLoads.filter(l => !l.DriverPay).length}</div></div>
+  `;
+  $("#payTotal").innerHTML = `<div>Total payroll — ${escapeHtml(STATE.payDriver || "")}</div><div class="total-amt">${fmt$(total)}</div>`;
+}
+
+function payCardHtml(l){
+  const dow = new Date(l.PickupDate || l.CreatedAt || Date.now()).toLocaleDateString(undefined,{weekday:"short"});
+  const route = `${l.OriginCity || "—"}${l.OriginState?", "+l.OriginState:""} → ${l.DestCity || "—"}${l.DestState?", "+l.DestState:""}`;
+  const payVal = l.DriverPay != null && l.DriverPay !== "" ? l.DriverPay : "";
+  return `
+    <div class="pay-card">
+      <div class="top">
+        <div>
+          <div class="date-chip">${dow} ${fmtDate(l.PickupDate)}</div>
+          <div class="route">${escapeHtml(route)}</div>
+          <div class="sub">${escapeHtml(l.Broker || "")} · #${escapeHtml(l.LoadNumber || "—")}</div>
+        </div>
+        <div class="date-chip" style="text-align:right">${escapeHtml(l.Status || "")}</div>
+      </div>
+      <div class="pay-row">
+        <label style="align-self:center">Driver pay&nbsp;$</label>
+        <input type="number" step="0.01" inputmode="decimal" class="pay-input" data-id="${l.LoadID}" placeholder="0.00" value="${payVal}" />
+      </div>
+      <textarea class="note-input" data-id="${l.LoadID}" placeholder="Comments (layover, issues, etc.)">${escapeHtml(l.Notes || "")}</textarea>
+    </div>
+  `;
+}
+
+function escapeHtml(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function saveLoadSilently(load){
+  // Quick save used by inline payroll edits — no full re-render mid-typing.
+  load.UpdatedAt = new Date().toISOString();
+  if (!STATE.apiUrl){ saveCache(STATE.loads); showToast("Saved"); return; }
+  try { await api("upsert", { load }); showToast("Saved"); }
+  catch(e){ showToast("Save failed: " + e.message, true); }
+}
+
+function openExtraModal(extra){
+  const f = $("#extraForm");
+  f.reset();
+  const today = new Date().toISOString().slice(0,10);
+  f.elements.Date.value      = extra?.Date || today;
+  f.elements.Amount.value    = extra?.Amount ?? "";
+  f.elements.Note.value      = extra?.Note || "";
+  f.elements.ExtraID.value   = extra?.ExtraID || "";
+  f.elements.Driver.value    = STATE.payDriver || "";
+  $("#extraTitle").textContent = extra?.ExtraID ? "Edit entry" : "Add compensation";
+  $("#modalExtra").classList.add("open");
+}
+function closeExtraModal(){ $("#modalExtra").classList.remove("open"); }
+
 /* ---------------- Events ---------------- */
 function bind(){
   $("#btnAdd").addEventListener("click", ()=> openEdit(null));
@@ -681,6 +1027,7 @@ function bind(){
     if (obj.OriginState) obj.OriginState = obj.OriginState.toUpperCase();
     if (obj.DestState)   obj.DestState   = obj.DestState.toUpperCase();
     if (obj.Rate) obj.Rate = Number(obj.Rate);
+    if (obj.DriverPay !== "") obj.DriverPay = Number(obj.DriverPay); else obj.DriverPay = "";
     closeEdit();
     await saveLoad(obj);
   });
@@ -704,6 +1051,43 @@ function bind(){
     localStorage.setItem(LS_KEY_TOKEN, STATE.apiToken);
     closeSettings(); showToast("Settings saved");
     fetchLoads();
+  });
+
+  // View switch
+  $$(".view-switch .vtab").forEach(tab => tab.addEventListener("click", ()=> {
+    $$(".view-switch .vtab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    STATE.view = tab.dataset.view;
+    render();
+  }));
+
+  // Week navigation (payroll)
+  $("#btnWeekPrev").addEventListener("click", ()=> {
+    const d = new Date(STATE.payWeekStart); d.setDate(d.getDate() - 7);
+    STATE.payWeekStart = d; renderPayroll();
+  });
+  $("#btnWeekNext").addEventListener("click", ()=> {
+    const d = new Date(STATE.payWeekStart); d.setDate(d.getDate() + 7);
+    STATE.payWeekStart = d; renderPayroll();
+  });
+  $("#btnWeekToday").addEventListener("click", ()=> {
+    STATE.payWeekStart = weekStartFri(new Date()); renderPayroll();
+  });
+
+  // Extras modal
+  $("#btnAddExtra").addEventListener("click", ()=> {
+    if (!STATE.payDriver){ showToast("Pick a driver first", true); return; }
+    openExtraModal(null);
+  });
+  $("#closeExtra").addEventListener("click", closeExtraModal);
+  $("#btnCancelExtra").addEventListener("click", closeExtraModal);
+  $("#extraForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const o = Object.fromEntries(fd.entries());
+    o.Amount = Number(o.Amount);
+    closeExtraModal();
+    await saveExtra(o);
   });
 
   $("#btnTestConn").addEventListener("click", async ()=> {
