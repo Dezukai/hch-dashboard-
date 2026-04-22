@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<title>HCH Logistics — Load Board</title>
+<link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkhDSCBMb2dpc3RpY3MgTG9hZCBCb2FyZCIsCiAgInNob3J0X25hbWUiOiAiSENIIExvYWRzIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjEyMjAiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIxMjIwIgp9" />
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #131c2e;
+    --panel-2: #1a2540;
+    --border: #22304d;
+    --text: #e8eef9;
+    --muted: #8aa0c2;
+    --accent: #22c55e;
+    --accent-2: #0ea5e9;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --ok: #10b981;
+    --chip-bg: #1a2540;
+    --shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px; min-height: 100vh;
+  }
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 96px) env(safe-area-inset-left); }
+
+  /* Header */
+  header.top {
+    position: sticky; top: 0; z-index: 20;
+    background: linear-gradient(180deg, #0b1220 0%, rgba(11,18,32,.9) 100%);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px 10px;
+  }
+  .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .2px; font-size: 18px; }
+  .brand .mark {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, #22c55e, #0ea5e9);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .brand small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .hdr-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--panel);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text); cursor: pointer;
+  }
+  .icon-btn:active { transform: scale(.96); }
+
+  /* Stats */
+  .stats {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+    margin: 12px 16px 0;
+  }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 14px;
+  }
+  .stat .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .stat .value { font-size: 22px; font-weight: 800; margin-top: 4px; }
+  .stat .value.money { color: var(--accent); }
+  .stat .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  @media (min-width: 680px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+
+  /* Filter chips */
+  .filters {
+    display: flex; gap: 8px; padding: 14px 16px 6px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip {
+    white-space: nowrap;
+    background: var(--chip-bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .chip.active { background: var(--text); color: #0b1220; border-color: var(--text); }
+
+  /* Load list */
+  .list { display: flex; flex-direction: column; gap: 10px; padding: 10px 16px; }
+  .empty {
+    text-align: center; color: var(--muted);
+    padding: 40px 20px; background: var(--panel);
+    border-radius: 16px; border: 1px dashed var(--border);
+  }
+  .load-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px; cursor: pointer;
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 12px;
+    transition: transform .08s ease;
+  }
+  .load-card:active { transform: scale(.995); }
+  .load-card .route { grid-column: 1 / 2; font-weight: 700; font-size: 16px; line-height: 1.35; }
+  .load-card .route .arrow { color: var(--muted); margin: 0 6px; }
+  .load-card .meta { grid-column: 1 / 2; color: var(--muted); font-size: 13px; }
+  .load-card .right { grid-column: 2 / 3; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .load-card .rate { font-weight: 800; color: var(--accent); font-size: 17px; }
+  .status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px; letter-spacing: .3px;
+    border: 1px solid transparent;
+  }
+  .status.booked       { background: rgba(14,165,233,.15); color: #7dd3fc; border-color: rgba(14,165,233,.35); }
+  .status.dispatched   { background: rgba(168,85,247,.15); color: #d8b4fe; border-color: rgba(168,85,247,.35); }
+  .status.in-transit   { background: rgba(245,158,11,.15); color: #fbbf24; border-color: rgba(245,158,11,.35); }
+  .status.delivered    { background: rgba(16,185,129,.15); color: #6ee7b7; border-color: rgba(16,185,129,.35); }
+  .status.invoiced     { background: rgba(100,116,139,.20); color: #cbd5e1; border-color: rgba(100,116,139,.45); }
+  .status.paid         { background: rgba(34,197,94,.20); color: #86efac; border-color: rgba(34,197,94,.45); }
+  .status.cancelled    { background: rgba(239,68,68,.18); color: #fca5a5; border-color: rgba(239,68,68,.45); }
+
+  /* FAB */
+  .fab {
+    position: fixed; right: calc(16px + env(safe-area-inset-right));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    width: 60px; height: 60px; border-radius: 50%;
+    background: linear-gradient(135deg, #22c55e, #0ea5e9);
+    color: white; font-size: 30px; line-height: 60px; text-align: center;
+    border: none; cursor: pointer; box-shadow: var(--shadow);
+    z-index: 15;
+  }
+  .fab:active { transform: scale(.95); }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(5,10,20,.7);
+    display: none; z-index: 50; backdrop-filter: blur(4px);
+  }
+  .modal-bg.open { display: flex; align-items: flex-end; justify-content: center; }
+  .modal {
+    background: var(--panel); width: 100%; max-width: 560px;
+    border-radius: 20px 20px 0 0; border-top: 1px solid var(--border);
+    max-height: 92vh; overflow-y: auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+    animation: slideUp .22s ease;
+  }
+  @media (min-width: 640px) { .modal { border-radius: 20px; margin-bottom: 5vh; } .modal-bg.open { align-items: center; } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal h2 { margin: 4px 0 16px; font-size: 20px; }
+  .modal .close { float: right; background: none; border: none; color: var(--muted); font-size: 28px; cursor: pointer; line-height: 1; padding: 0; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+  input, select, textarea {
+    width: 100%; padding: 12px 12px; border-radius: 10px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); font-size: 16px; font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-2); outline-offset: -1px; }
+  textarea { resize: vertical; min-height: 70px; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+  .btn {
+    flex: 1; padding: 14px; border-radius: 12px; border: none;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: #062712; }
+  .btn-secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(239,68,68,.35); }
+
+  /* Toast */
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(90px + env(safe-area-inset-bottom));
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 12px 18px; border-radius: 10px; z-index: 100;
+    box-shadow: var(--shadow); font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .toast.show { opacity: 1; }
+  .toast.err { border-color: rgba(239,68,68,.5); color: #fca5a5; }
+
+  /* Banner for config */
+  .banner {
+    margin: 10px 16px 0; padding: 10px 12px;
+    background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.35);
+    border-radius: 10px; font-size: 13px; color: #fbbf24;
+  }
+  .banner a { color: inherit; text-decoration: underline; }
+
+  /* Details view */
+  .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-row .k { color: var(--muted); font-size: 13px; }
+  .detail-row .v { text-align: right; font-weight: 600; }
+
+  /* Loading */
+  .spinner {
+    width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.2);
+    border-top-color: var(--text); border-radius: 50%;
+    animation: spin .8s linear infinite; display: inline-block; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand-row">
+    <div class="brand">
+      <span class="mark">HC</span>
+      <div>
+        HCH Logistics
+        <small id="subtitle">Weekly Load Board</small>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <button class="icon-btn" id="btnRefresh" title="Refresh" aria-label="Refresh">↻</button>
+      <button class="icon-btn" id="btnSettings" title="Settings" aria-label="Settings">⚙</button>
+    </div>
+  </div>
+</header>
+
+<div id="configBanner" class="banner" style="display:none">
+  Demo mode — no backend connected. Paste your Google Apps Script URL in ⚙ Settings to save real data.
+</div>
+
+<section class="stats" id="stats"></section>
+
+<div class="filters" id="filters">
+  <button class="chip active" data-filter="week">This Week</button>
+  <button class="chip" data-filter="all">All</button>
+  <button class="chip" data-filter="Booked">Booked</button>
+  <button class="chip" data-filter="Dispatched">Dispatched</button>
+  <button class="chip" data-filter="In Transit">In Transit</button>
+  <button class="chip" data-filter="Delivered">Delivered</button>
+  <button class="chip" data-filter="Invoiced">Invoiced</button>
+  <button class="chip" data-filter="Paid">Paid</button>
+</div>
+
+<main class="list" id="list"></main>
+
+<button class="fab" id="btnAdd" aria-label="Add load">+</button>
+
+<!-- Add/Edit Modal -->
+<div class="modal-bg" id="modalEdit">
+  <div class="modal">
+    <button class="close" id="closeEdit" aria-label="Close">×</button>
+    <h2 id="modalTitle">Add Load</h2>
+    <form id="editForm">
+      <div class="form-grid">
+        <div>
+          <label>Load #</label>
+          <input name="LoadNumber" placeholder="22788832" required />
+        </div>
+        <div>
+          <label>Broker</label>
+          <input name="Broker" placeholder="RXO" list="brokerList" />
+        </div>
+        <div class="full"><hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" /></div>
+
+        <div>
+          <label>Origin City</label>
+          <input name="OriginCity" placeholder="Kutztown" />
+        </div>
+        <div>
+          <label>Origin State</label>
+          <input name="OriginState" placeholder="PA" maxlength="2" style="text-transform:uppercase" />
+        </div>
+        <div>
+          <label>Dest City</label>
+          <input name="DestCity" placeholder="Alexandria" />
+        </div>
+        <div>
+          <label>Dest State</label>
+          <input name="DestState" placeholder="VA" maxlength="2" style="text-transform:uppercase" />
+        </div>
+
+        <div>
+          <label>Pickup</label>
+          <input name="PickupDate" type="date" />
+        </div>
+        <div>
+          <label>Delivery</label>
+          <input name="DeliveryDate" type="date" />
+        </div>
+
+        <div>
+          <label>Rate ($)</label>
+          <input name="Rate" type="number" step="0.01" placeholder="1400" inputmode="decimal" />
+        </div>
+        <div>
+          <label>Status</label>
+          <select name="Status">
+            <option>Booked</option>
+            <option>Dispatched</option>
+            <option>In Transit</option>
+            <option>Delivered</option>
+            <option>Invoiced</option>
+            <option>Paid</option>
+            <option>Cancelled</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Driver</label>
+          <input name="Driver" placeholder="Driver name" />
+        </div>
+        <div>
+          <label>Truck #</label>
+          <input name="Truck" placeholder="101" />
+        </div>
+
+        <div class="full">
+          <label>Notes</label>
+          <textarea name="Notes" placeholder="Any notes..."></textarea>
+        </div>
+      </div>
+
+      <input type="hidden" name="LoadID" />
+
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="btnCancelEdit">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btnSaveEdit">Save</button>
+      </div>
+      <div class="btn-row" id="deleteRow" style="display:none">
+        <button type="button" class="btn btn-danger" id="btnDelete">Delete load</button>
+      </div>
+    </form>
+    <datalist id="brokerList">
+      <option value="RXO"></option>
+      <option value="CH Robinson"></option>
+      <option value="Knight"></option>
+      <option value="Schneider"></option>
+      <option value="J.B. Hunt"></option>
+      <option value="Coyote"></option>
+      <option value="Uber Freight"></option>
+      <option value="Convoy"></option>
+      <option value="TQL"></option>
+      <option value="Echo Global"></option>
+      <option value="Landstar"></option>
+    </datalist>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-bg" id="modalDetail">
+  <div class="modal">
+    <button class="close" id="closeDetail" aria-label="Close">×</button>
+    <h2 id="detailTitle">Load</h2>
+    <div id="detailBody"></div>
+    <div class="btn-row">
+      <button type="button" class="btn btn-secondary" id="btnCloseDetail">Close</button>
+      <button type="button" class="btn btn-primary" id="btnEditLoad">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-bg" id="modalSettings">
+  <div class="modal">
+    <button class="close" id="closeSettings" aria-label="Close">×</button>
+    <h2>Settings</h2>
+    <label>Google Apps Script Web App URL</label>
+    <input id="apiUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+    <p style="color:var(--muted); font-size:12px; margin-top:8px;">
+      This is where your loads are saved. See the setup guide for how to create one (takes ~5 minutes).
+    </p>
+    <label style="margin-top:14px">Access token (optional)</label>
+    <input id="apiToken" placeholder="shared secret (must match script)" />
+    <div class="btn-row">
+      <button type="button" class="btn btn-secondary" id="btnTestConn">Test</button>
+      <button type="button" class="btn btn-primary" id="btnSaveSettings">Save</button>
+    </div>
+    <p id="testResult" style="color:var(--muted); font-size:13px; margin-top:10px"></p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================================================================
+   HCH Logistics — Load Board
+   Single-file dashboard. Data is stored in a Google Sheet via a
+   Google Apps Script Web App (see SETUP.md).
+   =================================================================== */
+
+const LS_KEY_API   = "hch.apiUrl";
+const LS_KEY_TOKEN = "hch.apiToken";
+const LS_KEY_CACHE = "hch.cache.v1";
+
+// Default API URL — baked in at setup. Can be overridden in Settings.
+const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyGK5qc0wPK2ndjgvQW6hKFMXG3wsdtbux9iFRgRCYCw_pnSvx87CU3sBCS82xYfzxl/exec";
+
+let STATE = {
+  apiUrl: localStorage.getItem(LS_KEY_API) || DEFAULT_API_URL,
+  apiToken: localStorage.getItem(LS_KEY_TOKEN) || "",
+  filter: "week",
+  loads: [],
+  loading: false,
+};
+
+/* ---- Demo data (shown if no API URL is configured) ---- */
+const DEMO_LOADS = [
+  { LoadID:"d-1", LoadNumber:"22788832", Broker:"RXO", OriginCity:"Kutztown", OriginState:"PA",
+    DestCity:"Alexandria", DestState:"VA", PickupDate: todayStr(0), DeliveryDate: todayStr(1),
+    Rate: 1850, Status:"Booked", Driver:"", Truck:"", Notes:"", CreatedAt: new Date().toISOString() },
+  { LoadID:"d-2", LoadNumber:"550424298", Broker:"CH Robinson", OriginCity:"Reading", OriginState:"PA",
+    DestCity:"Charlotte", DestState:"NC", PickupDate: todayStr(-1), DeliveryDate: todayStr(1),
+    Rate: 2100, Status:"In Transit", Driver:"Carlos", Truck:"101", Notes:"Drop trailer", CreatedAt: new Date().toISOString() },
+  { LoadID:"d-3", LoadNumber:"3517538", Broker:"Knight", OriginCity:"Allentown", OriginState:"PA",
+    DestCity:"Baltimore", DestState:"MD", PickupDate: todayStr(-2), DeliveryDate: todayStr(-1),
+    Rate: 950, Status:"Delivered", Driver:"Mike", Truck:"102", Notes:"", CreatedAt: new Date().toISOString() },
+  { LoadID:"d-4", LoadNumber:"22828259", Broker:"RXO", OriginCity:"Laurel", OriginState:"MD",
+    DestCity:"Williamsport", DestState:"MD", PickupDate: todayStr(-3), DeliveryDate: todayStr(-2),
+    Rate: 780, Status:"Paid", Driver:"Carlos", Truck:"101", Notes:"", CreatedAt: new Date().toISOString() },
+  { LoadID:"d-5", LoadNumber:"550137542", Broker:"CH Robinson", OriginCity:"Harrisburg", OriginState:"PA",
+    DestCity:"Richmond", DestState:"VA", PickupDate: todayStr(0), DeliveryDate: todayStr(1),
+    Rate: 1425, Status:"Dispatched", Driver:"Mike", Truck:"102", Notes:"", CreatedAt: new Date().toISOString() },
+];
+function todayStr(offsetDays){
+  const d = new Date(); d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().slice(0,10);
+}
+
+/* ---------------- Helpers ---------------- */
+function $(sel, root=document){ return root.querySelector(sel); }
+function $$(sel, root=document){ return [...root.querySelectorAll(sel)]; }
+function fmt$(n){ if (n==null || isNaN(n)) return "—"; return "$" + Number(n).toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:2}); }
+function fmtDate(s){ if(!s) return ""; try { const d = new Date(s); if (isNaN(d)) return s;
+  return d.toLocaleDateString(undefined, {month:"short", day:"numeric"});} catch(e){ return s; } }
+function weekRange(){
+  const now = new Date();
+  const day = (now.getDay()+6)%7; // Mon=0
+  const mon = new Date(now); mon.setDate(now.getDate() - day); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
+  return [mon, sun];
+}
+function inWeek(load){
+  const [mon, sun] = weekRange();
+  const pick = load.PickupDate ? new Date(load.PickupDate) : null;
+  const deli = load.DeliveryDate ? new Date(load.DeliveryDate) : null;
+  if (pick && pick >= mon && pick <= sun) return true;
+  if (deli && deli >= mon && deli <= sun) return true;
+  return false;
+}
+function showToast(msg, isErr=false){
+  const el = $("#toast");
+  el.textContent = msg;
+  el.classList.toggle("err", isErr);
+  el.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> el.classList.remove("show"), 2600);
+}
+function uid(){ return "l_" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function saveCache(loads){ try { localStorage.setItem(LS_KEY_CACHE, JSON.stringify(loads)); } catch(e){} }
+function loadCache(){ try { return JSON.parse(localStorage.getItem(LS_KEY_CACHE) || "null"); } catch(e){ return null; } }
+
+/* ---------------- API (Google Apps Script) ---------------- */
+async function api(action, payload={}){
+  if (!STATE.apiUrl) throw new Error("No API URL set");
+  const body = { action, token: STATE.apiToken || "", ...payload };
+  // text/plain avoids CORS preflight
+  const res = await fetch(STATE.apiUrl, {
+    method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Unknown error");
+  return data;
+}
+
+/* ---------------- Load flow ---------------- */
+async function fetchLoads(){
+  if (!STATE.apiUrl){
+    STATE.loads = loadCache() || DEMO_LOADS.slice();
+    render();
+    return;
+  }
+  STATE.loading = true; renderStatsLoading();
+  try {
+    const data = await api("list");
+    STATE.loads = data.loads || [];
+    saveCache(STATE.loads);
+  } catch (e){
+    showToast("Couldn't fetch: " + e.message, true);
+    STATE.loads = loadCache() || [];
+  } finally {
+    STATE.loading = false; render();
+  }
+}
+
+async function saveLoad(record){
+  if (!record.LoadID) record.LoadID = uid();
+  record.UpdatedAt = new Date().toISOString();
+  if (!record.CreatedAt) record.CreatedAt = record.UpdatedAt;
+
+  if (!STATE.apiUrl){
+    const i = STATE.loads.findIndex(l => l.LoadID === record.LoadID);
+    if (i >= 0) STATE.loads[i] = record; else STATE.loads.unshift(record);
+    saveCache(STATE.loads); render();
+    showToast("Saved (demo mode)");
+    return;
+  }
+  try {
+    await api("upsert", { load: record });
+    showToast("Saved");
+    await fetchLoads();
+  } catch(e){
+    showToast("Save failed: " + e.message, true);
+  }
+}
+
+async function deleteLoad(loadID){
+  if (!confirm("Delete this load? This can't be undone.")) return;
+  if (!STATE.apiUrl){
+    STATE.loads = STATE.loads.filter(l => l.LoadID !== loadID);
+    saveCache(STATE.loads); render();
+    showToast("Deleted (demo mode)");
+    return;
+  }
+  try {
+    await api("delete", { LoadID: loadID });
+    showToast("Deleted");
+    await fetchLoads();
+  } catch(e){
+    showToast("Delete failed: " + e.message, true);
+  }
+}
+
+/* ---------------- Rendering ---------------- */
+function statusClass(s){ return (s||"").toLowerCase().replace(/\s+/g,"-"); }
+
+function render(){
+  $("#configBanner").style.display = STATE.apiUrl ? "none" : "";
+  renderStats();
+  renderList();
+}
+
+function renderStatsLoading(){
+  $("#stats").innerHTML = `<div class="stat"><div class="label">Loading…</div><div class="value"><span class="spinner"></span></div></div>`;
+}
+
+function renderStats(){
+  const weekLoads = STATE.loads.filter(inWeek);
+  const weekRev = weekLoads.reduce((a,l)=> a + (Number(l.Rate)||0), 0);
+  const inTransit = STATE.loads.filter(l => l.Status === "In Transit").length;
+  const activeRevenue = STATE.loads
+    .filter(l => ["Booked","Dispatched","In Transit","Delivered","Invoiced"].includes(l.Status))
+    .reduce((a,l)=> a + (Number(l.Rate)||0), 0);
+  $("#stats").innerHTML = `
+    <div class="stat">
+      <div class="label">This Week</div>
+      <div class="value">${weekLoads.length}</div>
+      <div class="sub">loads</div>
+    </div>
+    <div class="stat">
+      <div class="label">Week Revenue</div>
+      <div class="value money">${fmt$(weekRev)}</div>
+      <div class="sub">booked this week</div>
+    </div>
+    <div class="stat">
+      <div class="label">In Transit</div>
+      <div class="value">${inTransit}</div>
+      <div class="sub">trucks rolling</div>
+    </div>
+    <div class="stat">
+      <div class="label">Open AR</div>
+      <div class="value money">${fmt$(activeRevenue)}</div>
+      <div class="sub">not yet paid</div>
+    </div>
+  `;
+}
+
+function renderList(){
+  const list = $("#list");
+  let filtered = STATE.loads.slice();
+  if (STATE.filter === "week"){
+    filtered = filtered.filter(inWeek);
+  } else if (STATE.filter !== "all"){
+    filtered = filtered.filter(l => l.Status === STATE.filter);
+  }
+  filtered.sort((a,b) => (b.PickupDate||"").localeCompare(a.PickupDate||"") || (b.CreatedAt||"").localeCompare(a.CreatedAt||""));
+
+  if (!filtered.length){
+    list.innerHTML = `<div class="empty">
+      <div style="font-size:30px;margin-bottom:6px">🚛</div>
+      <div><b>No loads yet</b></div>
+      <div style="margin-top:6px">Tap <b>+</b> to add one.</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(l => {
+    const routeOrigin = [l.OriginCity, l.OriginState].filter(Boolean).join(", ");
+    const routeDest   = [l.DestCity, l.DestState].filter(Boolean).join(", ");
+    const broker = l.Broker ? l.Broker + " · " : "";
+    const pick = l.PickupDate ? "PU " + fmtDate(l.PickupDate) : "";
+    const deli = l.DeliveryDate ? "DEL " + fmtDate(l.DeliveryDate) : "";
+    return `
+      <div class="load-card" data-id="${l.LoadID}">
+        <div class="route">${routeOrigin || "—"}<span class="arrow">→</span>${routeDest || "—"}</div>
+        <div class="meta">${broker}#${l.LoadNumber || "—"} ${pick?" · "+pick:""}${deli?" · "+deli:""}</div>
+        <div class="right">
+          <div class="rate">${fmt$(l.Rate)}</div>
+          <span class="status ${statusClass(l.Status)}">${l.Status || "Booked"}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+  $$("#list .load-card").forEach(el => el.addEventListener("click", ()=> openDetail(el.dataset.id)));
+}
+
+/* ---------------- Modals ---------------- */
+function openEdit(load){
+  const form = $("#editForm");
+  form.reset();
+  for (const k of ["LoadID","LoadNumber","Broker","OriginCity","OriginState","DestCity","DestState",
+                   "PickupDate","DeliveryDate","Rate","Status","Driver","Truck","Notes"]){
+    const el = form.elements[k]; if (!el) continue;
+    el.value = load && load[k] != null ? load[k] : "";
+  }
+  $("#modalTitle").textContent = load?.LoadID ? "Edit Load" : "Add Load";
+  $("#deleteRow").style.display = load?.LoadID ? "" : "none";
+  $("#modalEdit").classList.add("open");
+}
+function closeEdit(){ $("#modalEdit").classList.remove("open"); }
+
+function openDetail(id){
+  const l = STATE.loads.find(x => x.LoadID === id);
+  if (!l) return;
+  $("#detailTitle").textContent = `${l.OriginCity || "—"} → ${l.DestCity || "—"}`;
+  const rows = [
+    ["Load #", l.LoadNumber],
+    ["Broker", l.Broker],
+    ["Status", l.Status],
+    ["Rate", fmt$(l.Rate)],
+    ["Pickup", fmtDate(l.PickupDate)],
+    ["Delivery", fmtDate(l.DeliveryDate)],
+    ["Origin", [l.OriginCity, l.OriginState, l.OriginZip].filter(Boolean).join(", ")],
+    ["Dest", [l.DestCity, l.DestState, l.DestZip].filter(Boolean).join(", ")],
+    ["Driver", l.Driver],
+    ["Truck", l.Truck],
+    ["Notes", l.Notes],
+  ].filter(([,v]) => v != null && v !== "");
+  $("#detailBody").innerHTML = rows.map(([k,v]) =>
+    `<div class="detail-row"><div class="k">${k}</div><div class="v">${String(v).replace(/</g,"&lt;")}</div></div>`
+  ).join("");
+  $("#modalDetail").classList.add("open");
+  $("#btnEditLoad").onclick = ()=> { closeDetail(); openEdit(l); };
+}
+function closeDetail(){ $("#modalDetail").classList.remove("open"); }
+
+function openSettings(){
+  $("#apiUrl").value = STATE.apiUrl;
+  $("#apiToken").value = STATE.apiToken;
+  $("#testResult").textContent = "";
+  $("#modalSettings").classList.add("open");
+}
+function closeSettings(){ $("#modalSettings").classList.remove("open"); }
+
+/* ---------------- Events ---------------- */
+function bind(){
+  $("#btnAdd").addEventListener("click", ()=> openEdit(null));
+  $("#btnSettings").addEventListener("click", openSettings);
+  $("#btnRefresh").addEventListener("click", ()=> { fetchLoads(); showToast("Refreshing…"); });
+
+  $("#closeEdit").addEventListener("click", closeEdit);
+  $("#btnCancelEdit").addEventListener("click", closeEdit);
+  $("#closeDetail").addEventListener("click", closeDetail);
+  $("#btnCloseDetail").addEventListener("click", closeDetail);
+  $("#closeSettings").addEventListener("click", closeSettings);
+
+  $$(".modal-bg").forEach(bg => bg.addEventListener("click", (e)=> {
+    if (e.target === bg) bg.classList.remove("open");
+  }));
+
+  $("#editForm").addEventListener("submit", async (e)=> {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const obj = Object.fromEntries(fd.entries());
+    if (obj.OriginState) obj.OriginState = obj.OriginState.toUpperCase();
+    if (obj.DestState)   obj.DestState   = obj.DestState.toUpperCase();
+    if (obj.Rate) obj.Rate = Number(obj.Rate);
+    closeEdit();
+    await saveLoad(obj);
+  });
+
+  $("#btnDelete").addEventListener("click", ()=> {
+    const id = $("#editForm").elements["LoadID"].value;
+    if (id){ closeEdit(); deleteLoad(id); }
+  });
+
+  $$("#filters .chip").forEach(ch => ch.addEventListener("click", ()=> {
+    $$("#filters .chip").forEach(c => c.classList.remove("active"));
+    ch.classList.add("active");
+    STATE.filter = ch.dataset.filter;
+    renderList();
+  }));
+
+  $("#btnSaveSettings").addEventListener("click", ()=> {
+    STATE.apiUrl = $("#apiUrl").value.trim();
+    STATE.apiToken = $("#apiToken").value.trim();
+    localStorage.setItem(LS_KEY_API, STATE.apiUrl);
+    localStorage.setItem(LS_KEY_TOKEN, STATE.apiToken);
+    closeSettings(); showToast("Settings saved");
+    fetchLoads();
+  });
+
+  $("#btnTestConn").addEventListener("click", async ()=> {
+    const url = $("#apiUrl").value.trim();
+    const tok = $("#apiToken").value.trim();
+    $("#testResult").textContent = "Testing…";
+    if (!url){ $("#testResult").textContent = "Enter a URL first."; return; }
+    try {
+      const res = await fetch(url, { method: "POST",
+        headers: {"Content-Type":"text/plain;charset=utf-8"},
+        body: JSON.stringify({ action:"ping", token: tok })});
+      const json = await res.json();
+      if (json.ok){ $("#testResult").textContent = "✅ Connected! " + (json.message || ""); }
+      else { $("#testResult").textContent = "⚠️ " + (json.error || "unknown error"); }
+    } catch(e){ $("#testResult").textContent = "❌ " + e.message; }
+  });
+}
+
+bind();
+fetchLoads();
+</script>
+</body>
+</html>
