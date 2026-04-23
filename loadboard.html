@@ -1747,9 +1747,10 @@ function renderFuel(){
     <th style="text-align:right">Gallons</th>
     <th style="text-align:right">$/Gal</th>
     <th style="text-align:right">Total</th>
+    <th style="text-align:right">Saved</th>
   </tr></thead><tbody>`;
   if (!filtered.length){
-    html += `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">
+    html += `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">
       No receipts this week. Mudflap receipts pull automatically every hour. Tap <b>+</b> to log a non-Mudflap receipt.
     </td></tr>`;
   } else {
@@ -1758,6 +1759,8 @@ function renderFuel(){
       const md = (d.getMonth()+1).toString().padStart(2,"0") + "/" + d.getDate().toString().padStart(2,"0");
       const ppg = (Number(f.PricePerGallon)||0);
       const gal = (Number(f.Gallons)||0);
+      const saved = Number(f.SavingsAmount)||0;
+      const retail = Number(f.RetailPricePerGal)||0;
       const needsDriver = !f.Driver;
       html += `
         <tr class="load-row${needsDriver?" needs-driver-row":""}" data-id="${f.ReceiptID}">
@@ -1765,8 +1768,9 @@ function renderFuel(){
           <td class="col-driver drv-cell">${needsDriver ? "— assign driver" : escapeHtml(f.Driver)}</td>
           <td>${escapeHtml(f.Location || "—")}</td>
           <td class="col-gallons">${gal ? gal.toFixed(1) + " gal" : "—"}</td>
-          <td class="col-ppg">${ppg ? "$"+ppg.toFixed(3) : "—"}</td>
+          <td class="col-ppg">${ppg ? "$"+ppg.toFixed(3) : "—"}${retail?'<div style="font-size:10px;color:var(--muted)">retail $'+retail.toFixed(3)+'</div>':''}</td>
           <td class="col-total">${fmt$(f.TotalAmount)}</td>
+          <td class="col-total" style="color:var(--accent)">${saved>0?"+"+fmt$(saved):"—"}</td>
         </tr>
       `;
     });
@@ -1776,6 +1780,7 @@ function renderFuel(){
   $$("#fuelTable .load-row").forEach(el => el.addEventListener("click", ()=> openFuelModal(STATE.fuel.find(f => f.ReceiptID === el.dataset.id))));
 
   // Footer totals
+  const totalSaved = filtered.reduce((a,f) => a + (Number(f.SavingsAmount)||0), 0);
   $("#fuelTotals").innerHTML = `
     <div class="block">
       <div class="label">Total Gallons</div>
@@ -1785,6 +1790,10 @@ function renderFuel(){
       <div class="label">Total Diesel Cost</div>
       <div class="value cost">${fmt$(totalAmt)}</div>
     </div>
+    ${totalSaved > 0 ? `<div class="block">
+      <div class="label">Total Saved (Mudflap)</div>
+      <div class="value" style="color:var(--accent)">${fmt$(totalSaved)}</div>
+    </div>` : ''}
     ${avgPpg ? `<div class="block" style="margin-left:auto;text-align:right">
       <div class="label">Avg $/Gal</div>
       <div class="value" style="color:var(--muted);font-size:16px">$${avgPpg.toFixed(3)}</div>
