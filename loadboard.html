@@ -556,14 +556,43 @@
   .lb-table .col-rate   { font-weight: 700; }
   .lb-table .col-net    { font-weight: 800; color: var(--accent); }
   .lb-table .col-load   { color: var(--accent-2); font-weight: 700; font-family: ui-monospace, Menlo, monospace; }
-  .lb-table .col-status { width: 4px; padding: 0; }
+  .lb-table .col-status { width: 14px; padding: 0; position: relative; }
   .lb-table .col-status .row-dot {
-    display: block; width: 4px; height: 100%; min-height: 32px;
-    border-radius: 2px;
+    display: block; width: 6px; height: 100%; min-height: 32px;
+    margin-left: 4px; border-radius: 3px;
+    cursor: pointer; transition: width .12s ease;
   }
-  .lb-table .col-status .row-dot.active { background: #7dd3fc; }
-  .lb-table .col-status .row-dot.invoiced { background: #fca5a5; }
-  .lb-table .col-status .row-dot.paid { background: #86efac; }
+  .lb-table .col-status .row-dot:hover { width: 10px; }
+  .lb-table .col-status .row-dot.active    { background: #7dd3fc; }
+  .lb-table .col-status .row-dot.invoiced  { background: #fca5a5; }
+  .lb-table .col-status .row-dot.paid      { background: #86efac; }
+  .lb-table .col-status .row-dot.detention { background: var(--warn); }
+  .lb-table tr.is-paid td      { background: rgba(34,197,94,.05); }
+  .lb-table tr.is-invoiced td  { background: rgba(239,68,68,.05); }
+  .lb-table tr.is-detention td { background: rgba(245,158,11,.06); }
+
+  /* Status picker popover */
+  .status-popover {
+    position: fixed; z-index: 200;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    display: none; min-width: 160px;
+  }
+  .status-popover.open { display: block; }
+  .status-popover button {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 8px 12px; border: none; background: transparent;
+    color: var(--text); font-size: 14px; font-weight: 600;
+    cursor: pointer; text-align: left; border-radius: 6px;
+    font-family: inherit;
+  }
+  .status-popover button:hover { background: var(--panel-2); }
+  .status-popover button .swatch {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .status-popover button.current { background: var(--panel-2); }
+  .status-popover button.current::after { content: "✓"; margin-left:auto; color: var(--accent); }
   .trailer-pill {
     display: inline-block; padding: 3px 8px;
     background: rgba(34,197,94,.12); color: #6ee7b7;
@@ -744,6 +773,14 @@
 
 <button class="fab" id="btnAdd" aria-label="Add load">+</button>
 
+<!-- Status picker popover -->
+<div class="status-popover" id="statusPopover">
+  <button data-status="Booked"><span class="swatch" style="background:#7dd3fc"></span>Active</button>
+  <button data-status="Invoiced"><span class="swatch" style="background:#fca5a5"></span>Invoiced</button>
+  <button data-status="Paid"><span class="swatch" style="background:#86efac"></span>Paid</button>
+  <button data-status="Detention"><span class="swatch" style="background:#f59e0b"></span>Detention / Layover</button>
+</div>
+
 <!-- Add/Edit Modal -->
 <div class="modal-bg" id="modalEdit">
   <div class="modal">
@@ -800,6 +837,7 @@
             <option>Delivered</option>
             <option>Invoiced</option>
             <option>Paid</option>
+            <option>Detention</option>
             <option>Cancelled</option>
           </select>
         </div>
@@ -1360,13 +1398,16 @@ function renderLoadboard(){
       const net  = rate - fee;
       const cfg  = BROKER_FEES[l.Broker];
       const feePillText = cfg ? (cfg.type==="flat" ? "$"+cfg.value+" flat" : cfg.value+"%") : "—";
-      const dotClass = (l.Status === "Paid") ? "paid" : (l.Status === "Invoiced" ? "invoiced" : "active");
+      const dotClass = (l.Status === "Paid") ? "paid"
+                     : (l.Status === "Invoiced" ? "invoiced"
+                     : (l.Status === "Detention" ? "detention" : "active"));
       const isNew = isNewFromGmail(l);
+      const rowStatusClass = "is-" + dotClass;
       const dt = new Date(l.PickupDate);
       const md = (dt.getMonth()+1).toString().padStart(2,"0")+"/"+dt.getDate().toString().padStart(2,"0");
       tbody += `
-        <tr class="load-row${isNew?" is-new":""}" data-id="${l.LoadID}">
-          <td class="col-status"><span class="row-dot ${dotClass}"></span></td>
+        <tr class="load-row ${rowStatusClass}${isNew?" is-new":""}" data-id="${l.LoadID}">
+          <td class="col-status"><span class="row-dot ${dotClass}" data-status-pick="${l.LoadID}" title="Click to change status"></span></td>
           <td>${md}</td>
           <td class="col-driver">${escapeHtml(l.Driver || "—")}${isNew?'<span class="new-row-tag">NEW</span>':''}</td>
           <td>${l.TrailerNumber ? `<span class="trailer-pill">${escapeHtml(l.TrailerNumber)}</span>` : "—"}</td>
@@ -1382,8 +1423,40 @@ function renderLoadboard(){
   }
   tbody += `</tbody>`;
   $("#lbTable").innerHTML = tbody;
-  $$("#lbTable .load-row").forEach(el => el.addEventListener("click", ()=> openDetail(el.dataset.id)));
+  $$("#lbTable .load-row").forEach(el => el.addEventListener("click", e => {
+    // Don't open detail if user clicked the status pill
+    if (e.target.closest("[data-status-pick]")) return;
+    openDetail(el.dataset.id);
+  }));
+  $$("#lbTable [data-status-pick]").forEach(el => el.addEventListener("click", e => {
+    e.stopPropagation();
+    openStatusPopover(el.dataset.statusPick, el);
+  }));
 }
+
+function openStatusPopover(loadId, anchorEl){
+  const pop = $("#statusPopover");
+  const load = STATE.loads.find(l => l.LoadID === loadId);
+  if (!load) return;
+  const r = anchorEl.getBoundingClientRect();
+  pop.style.left = Math.min(window.innerWidth - 180, r.right + 4) + "px";
+  pop.style.top  = Math.min(window.innerHeight - 180, r.top) + "px";
+  // Mark current
+  const currentBucket = (load.Status === "Paid") ? "Paid"
+                      : (load.Status === "Invoiced" ? "Invoiced"
+                      : (load.Status === "Detention" ? "Detention" : "Booked"));
+  $$("#statusPopover button").forEach(b => {
+    b.classList.toggle("current", b.dataset.status === currentBucket);
+    b.onclick = async () => {
+      load.Status = b.dataset.status;
+      pop.classList.remove("open");
+      await saveLoadSilently(load);
+      renderLoadboard();
+    };
+  });
+  pop.classList.add("open");
+}
+function closeStatusPopover(){ $("#statusPopover").classList.remove("open"); }
 
 function isNewFromGmail(l){
   return !l.Driver && l.Source && String(l.Source).toLowerCase().startsWith("email:");
@@ -1917,6 +1990,14 @@ function bind(){
   });
   $("#btnLbNewFilter").addEventListener("click", ()=> {
     STATE.lbShowOnlyNew = !STATE.lbShowOnlyNew; renderLoadboard();
+  });
+
+  // Close status popover on outside click
+  document.addEventListener("click", e => {
+    const pop = $("#statusPopover");
+    if (!pop.classList.contains("open")) return;
+    if (e.target.closest("#statusPopover") || e.target.closest("[data-status-pick]")) return;
+    closeStatusPopover();
   });
 
   $("#btnSaveSettings").addEventListener("click", ()=> {
