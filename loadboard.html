@@ -363,7 +363,35 @@
   }
   .pay-total .total-amt { color: var(--accent); font-size: 22px; }
 
-  /* Fuel card */
+  /* Fuel table */
+  .fuel-table .col-gallons { text-align: right; font-weight: 700; }
+  .fuel-table .col-ppg { text-align: right; color: var(--muted); }
+  .fuel-table .col-total { text-align: right; font-weight: 800; }
+  .fuel-table tr.needs-driver-row td { background: rgba(245,158,11,.08); }
+  .fuel-table tr.needs-driver-row td.drv-cell {
+    color: var(--warn); font-weight: 700;
+  }
+  .needs-driver-banner {
+    margin: 10px 16px 0; padding: 10px 14px;
+    background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.45);
+    color: #fbbf24; border-radius: 10px; font-size: 13px;
+  }
+  .diesel-totals {
+    margin: 0 16px 100px; padding: 14px 18px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 14px 14px;
+    display: flex; gap: 40px; align-items: baseline;
+  }
+  .diesel-totals .block { display: flex; flex-direction: column; }
+  .diesel-totals .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); font-weight: 700;
+  }
+  .diesel-totals .value { font-size: 22px; font-weight: 800; margin-top: 4px; }
+  .diesel-totals .value.gallons { color: var(--text); }
+  .diesel-totals .value.cost { color: var(--danger); }
+
+  /* Fuel card (legacy, kept for any fallback) */
   .fuel-card {
     background: var(--panel); border: 1px solid var(--border);
     border-radius: 14px; padding: 14px; cursor: pointer;
@@ -701,14 +729,17 @@
 
 <!-- ================== FUEL VIEW ================== -->
 <div id="fuelView" style="display:none">
-  <section class="stats" id="fuelStats"></section>
   <div class="week-nav">
     <button class="icon-btn" id="btnFuelWeekPrev" aria-label="Previous week">◀</button>
     <div class="week-label" id="fuelWeekLabel">—</div>
     <button class="icon-btn" id="btnFuelWeekNext" aria-label="Next week">▶</button>
     <button class="icon-btn" id="btnFuelWeekToday" title="This week">●</button>
   </div>
-  <main class="list" id="fuelList"></main>
+  <div class="needs-driver-banner" id="fuelNeedsBanner" style="display:none"></div>
+  <div class="lb-table-wrap" style="margin-bottom:0">
+    <table class="lb-table fuel-table" id="fuelTable"></table>
+  </div>
+  <div class="diesel-totals" id="fuelTotals"></div>
 </div>
 
 <button class="fab" id="btnAdd" aria-label="Add load">+</button>
@@ -1614,62 +1645,77 @@ function renderFuel(){
   if (!STATE.fuelWeekStart) STATE.fuelWeekStart = weekStartFri(new Date());
   $("#fuelWeekLabel").textContent = fmtWeekLabel(STATE.fuelWeekStart);
 
-  // Filter receipts by week (no driver filter — show all)
+  // Filter receipts by week (no driver filter — show all). Sort by date ASC.
   const [fri, thu] = weekRange(STATE.fuelWeekStart);
   const filtered = STATE.fuel.filter(f => {
     if (!f.Date) return false;
     const d = new Date(f.Date);
     return d >= fri && d <= thu;
-  }).sort((a,b) => (b.Date||"").localeCompare(a.Date||""));
+  }).sort((a,b) => (a.Date||"").localeCompare(b.Date||""));
 
   // Stats
   const totalAmt = filtered.reduce((a,f) => a + (Number(f.TotalAmount)||0), 0);
   const totalGal = filtered.reduce((a,f) => a + (Number(f.Gallons)||0), 0);
   const avgPpg = totalGal > 0 ? totalAmt / totalGal : 0;
   const needsDriverCount = filtered.filter(f => !f.Driver).length;
-  $("#fuelStats").innerHTML = `
-    <div class="stat" ${needsDriverCount>0?'style="border-color:var(--warn)"':''}>
-      <div class="label" ${needsDriverCount>0?'style="color:var(--warn)"':''}>Need driver</div>
-      <div class="value" ${needsDriverCount>0?'style="color:var(--warn)"':''}>${needsDriverCount}</div>
-      <div class="sub">tap to assign</div>
-    </div>
-    <div class="stat"><div class="label">Total spend</div><div class="value money">${fmt$(totalAmt)}</div><div class="sub">${filtered.length} receipts</div></div>
-    <div class="stat"><div class="label">Gallons</div><div class="value">${totalGal.toFixed(1)}</div><div class="sub">total</div></div>
-    <div class="stat"><div class="label">Avg $/gal</div><div class="value">${avgPpg ? "$"+avgPpg.toFixed(3) : "—"}</div><div class="sub">all vendors</div></div>
-  `;
-
-  // List
-  const list = $("#fuelList");
-  if (!filtered.length){
-    list.innerHTML = `<div class="empty">
-      <div style="font-size:30px;margin-bottom:6px">⛽</div>
-      <div><b>No receipts this week.</b></div>
-      <div style="margin-top:6px">Mudflap receipts pull automatically every hour. Tap <b>+</b> to log a non-Mudflap receipt.</div>
-    </div>`;
-    return;
+  const banner = $("#fuelNeedsBanner");
+  if (needsDriverCount > 0){
+    banner.style.display = "";
+    banner.innerHTML = `⭐ <b>${needsDriverCount}</b> receipt${needsDriverCount===1?"":"s"} need a driver assigned. Tap any amber row to set driver.`;
+  } else {
+    banner.style.display = "none";
   }
-  list.innerHTML = filtered.map(f => {
-    const d = new Date(f.Date);
-    const dow = d.toLocaleDateString(undefined,{weekday:"short"});
-    const md = (d.getMonth()+1).toString().padStart(2,"0") + "/" + d.getDate().toString().padStart(2,"0");
-    const driverTruck = [f.Driver, f.Truck && ("Truck "+f.Truck)].filter(Boolean).join(" · ");
-    const ppg = (Number(f.PricePerGallon)||0);
-    const gal = (Number(f.Gallons)||0);
-    const needsDriver = !f.Driver;
-    return `
-      <div class="fuel-card${needsDriver?" needs-driver":""}" data-id="${f.ReceiptID}">
-        <div class="top"><span class="vendor">${escapeHtml(f.Vendor||"Mudflap")}</span> · ${escapeHtml(f.Location||"—")}</div>
-        <div class="right">
-          <div class="total">${fmt$(f.TotalAmount)}</div>
-          <div class="gallons">${gal? gal.toFixed(2)+" gal":""}</div>
-          <div class="ppg">${ppg? "$"+ppg.toFixed(3)+"/gal":""}</div>
-        </div>
-        <div class="meta">${dow} ${md} · ${needsDriver ? '<span style="color:var(--warn);font-weight:700">Tap to assign driver</span>' : escapeHtml(driverTruck)}</div>
-        ${f.Notes?`<div class="notes">${escapeHtml(f.Notes)}</div>`:""}
-      </div>
-    `;
-  }).join("");
-  $$("#fuelList .fuel-card").forEach(el => el.addEventListener("click", ()=> openFuelModal(STATE.fuel.find(f => f.ReceiptID === el.dataset.id))));
+
+  // Build table
+  const table = $("#fuelTable");
+  let html = `<thead><tr>
+    <th>Date</th><th>Driver</th><th>Location</th>
+    <th style="text-align:right">Gallons</th>
+    <th style="text-align:right">$/Gal</th>
+    <th style="text-align:right">Total</th>
+  </tr></thead><tbody>`;
+  if (!filtered.length){
+    html += `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">
+      No receipts this week. Mudflap receipts pull automatically every hour. Tap <b>+</b> to log a non-Mudflap receipt.
+    </td></tr>`;
+  } else {
+    filtered.forEach(f => {
+      const d = new Date(f.Date);
+      const md = (d.getMonth()+1).toString().padStart(2,"0") + "/" + d.getDate().toString().padStart(2,"0");
+      const ppg = (Number(f.PricePerGallon)||0);
+      const gal = (Number(f.Gallons)||0);
+      const needsDriver = !f.Driver;
+      html += `
+        <tr class="load-row${needsDriver?" needs-driver-row":""}" data-id="${f.ReceiptID}">
+          <td>${md}</td>
+          <td class="col-driver drv-cell">${needsDriver ? "— assign driver" : escapeHtml(f.Driver)}</td>
+          <td>${escapeHtml(f.Location || "—")}</td>
+          <td class="col-gallons">${gal ? gal.toFixed(1) + " gal" : "—"}</td>
+          <td class="col-ppg">${ppg ? "$"+ppg.toFixed(3) : "—"}</td>
+          <td class="col-total">${fmt$(f.TotalAmount)}</td>
+        </tr>
+      `;
+    });
+  }
+  html += `</tbody>`;
+  table.innerHTML = html;
+  $$("#fuelTable .load-row").forEach(el => el.addEventListener("click", ()=> openFuelModal(STATE.fuel.find(f => f.ReceiptID === el.dataset.id))));
+
+  // Footer totals
+  $("#fuelTotals").innerHTML = `
+    <div class="block">
+      <div class="label">Total Gallons</div>
+      <div class="value gallons">${totalGal.toFixed(1)} gal</div>
+    </div>
+    <div class="block">
+      <div class="label">Total Diesel Cost</div>
+      <div class="value cost">${fmt$(totalAmt)}</div>
+    </div>
+    ${avgPpg ? `<div class="block" style="margin-left:auto;text-align:right">
+      <div class="label">Avg $/Gal</div>
+      <div class="value" style="color:var(--muted);font-size:16px">$${avgPpg.toFixed(3)}</div>
+    </div>` : ''}
+  `;
 }
 
 function openFuelModal(receipt){
