@@ -394,6 +394,168 @@
   .fuel-card .gallons { color: var(--text); font-size: 13px; font-weight: 600; }
   .fuel-card .notes { grid-column: 1 / -1; color: var(--muted); font-size: 12px; font-style: italic; }
 
+  /* Driver P&L card */
+  .driver-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px;
+  }
+  .driver-card .name {
+    font-size: 18px; font-weight: 800; margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: .3px;
+  }
+  .driver-card .summary {
+    color: var(--muted); font-size: 13px; margin-bottom: 12px;
+  }
+  .pnl-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 6px 0; font-size: 14px;
+  }
+  .pnl-row.gross { color: var(--accent); font-weight: 700; }
+  .pnl-row.cost { color: var(--muted); }
+  .pnl-row.cost .amt { color: var(--danger); }
+  .pnl-row.divider { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 10px; }
+  .pnl-row.net {
+    font-size: 16px; font-weight: 800;
+    padding-top: 10px;
+  }
+  .pnl-row.net .amt { color: var(--accent); font-size: 18px; }
+  .pnl-row.net.negative .amt { color: var(--danger); }
+  .pnl-row .label { color: var(--text); }
+  .pnl-row.cost .label { color: var(--muted); }
+  .margin-pill {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px; margin-left: 8px;
+    background: rgba(34,197,94,.18); color: #86efac; border: 1px solid rgba(34,197,94,.4);
+  }
+  .margin-pill.warn { background: rgba(245,158,11,.18); color: #fbbf24; border-color: rgba(245,158,11,.4); }
+  .margin-pill.bad  { background: rgba(239,68,68,.18); color: #fca5a5; border-color: rgba(239,68,68,.4); }
+  .company-total {
+    margin: 18px 16px 10px; padding: 18px 18px;
+    background: linear-gradient(135deg, rgba(34,197,94,.15), rgba(14,165,233,.15));
+    border: 2px solid var(--accent); border-radius: 14px;
+  }
+  .company-total .title {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .8px;
+    font-weight: 700; color: var(--muted); margin-bottom: 8px;
+  }
+  .company-total .pnl-row.net .amt { font-size: 24px; }
+
+  /* === Loadboard weekly view === */
+  .lb-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 16px 20px; margin: 12px 16px 0;
+    background: var(--panel); border: 1px solid var(--accent-2); border-radius: 14px;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .lb-co-name {
+    font-weight: 900; font-size: 22px; letter-spacing: .5px;
+    color: var(--text);
+  }
+  .lb-co-addr { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .lb-week-badge {
+    text-align: right; color: var(--accent-2); font-weight: 700;
+    font-size: 12px; letter-spacing: .8px; line-height: 1.5;
+  }
+  .lb-week-badge span { font-size: 14px; color: var(--text); font-weight: 800; }
+
+  .lb-stats {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+    margin: 10px 16px 0;
+  }
+  .lb-stats .stat { padding: 12px 14px; }
+  .lb-stats .stat .label { font-weight: 700; color: var(--muted); font-size: 11px; }
+  .lb-stats .stat .value { font-size: 22px; font-weight: 800; margin-top: 4px; }
+  .lb-stat-gross  { border-color: var(--accent); }
+  .lb-stat-gross .value, .lb-stat-gross .label { color: var(--accent); }
+  .lb-stat-fees   { border-color: var(--warn); }
+  .lb-stat-fees .value, .lb-stat-fees .label { color: var(--warn); }
+  .lb-stat-diesel { border-color: var(--danger); }
+  .lb-stat-diesel .value, .lb-stat-diesel .label { color: var(--danger); }
+  .lb-stat-pay    { border-color: #fbbf24; }
+  .lb-stat-pay .value, .lb-stat-pay .label { color: #fbbf24; }
+  .lb-stat-net    { border-color: var(--accent); background: linear-gradient(135deg, rgba(34,197,94,.1), var(--panel)); }
+  .lb-stat-net .value, .lb-stat-net .label { color: var(--accent); }
+  @media (max-width: 768px) {
+    .lb-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .lb-legend {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin: 10px 16px 0;
+    background: var(--panel); border-radius: 10px; border: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .fee-tag {
+    display: inline-block; margin: 0 4px; color: var(--warn); font-weight: 700;
+  }
+  .lb-status-legend { display: flex; gap: 14px; color: var(--muted); }
+  .lb-status-legend .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 4px; vertical-align: middle;
+  }
+  .dot.active   { background: #7dd3fc; }
+  .dot.invoiced { background: #fca5a5; }
+  .dot.paid     { background: #86efac; }
+
+  .lb-table-wrap {
+    margin: 10px 16px 100px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 14px; overflow-x: auto;
+  }
+  .lb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .lb-table th {
+    background: var(--panel-2); padding: 10px 8px; text-align: left;
+    color: var(--muted); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .lb-table td {
+    padding: 9px 8px; border-bottom: 1px solid var(--border);
+    vertical-align: middle; white-space: nowrap;
+  }
+  .lb-table tr.load-row { cursor: pointer; transition: background .1s; }
+  .lb-table tr.load-row:hover td { background: rgba(255,255,255,.025); }
+  .lb-table tr.load-row.is-new td { background: rgba(245,158,11,.08); }
+  .lb-table tr.day-divider td {
+    background: rgba(14,165,233,.12); color: var(--accent-2);
+    font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+    font-size: 12px; padding: 8px 10px;
+  }
+  .lb-table tr.subsection td {
+    color: var(--muted); font-style: italic; font-size: 11px;
+    padding: 4px 10px; background: var(--panel);
+  }
+  .lb-table .col-driver { font-weight: 700; }
+  .lb-table .col-rate   { font-weight: 700; }
+  .lb-table .col-net    { font-weight: 800; color: var(--accent); }
+  .lb-table .col-load   { color: var(--accent-2); font-weight: 700; font-family: ui-monospace, Menlo, monospace; }
+  .lb-table .col-status { width: 4px; padding: 0; }
+  .lb-table .col-status .row-dot {
+    display: block; width: 4px; height: 100%; min-height: 32px;
+    border-radius: 2px;
+  }
+  .lb-table .col-status .row-dot.active { background: #7dd3fc; }
+  .lb-table .col-status .row-dot.invoiced { background: #fca5a5; }
+  .lb-table .col-status .row-dot.paid { background: #86efac; }
+  .trailer-pill {
+    display: inline-block; padding: 3px 8px;
+    background: rgba(34,197,94,.12); color: #6ee7b7;
+    border: 1px solid rgba(34,197,94,.4);
+    border-radius: 6px; font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px; font-weight: 700;
+  }
+  .fee-pill {
+    display: inline-block; padding: 3px 8px;
+    background: rgba(245,158,11,.12); color: var(--warn);
+    border: 1px solid rgba(245,158,11,.4);
+    border-radius: 999px; font-size: 11px; font-weight: 700;
+  }
+  .new-row-tag {
+    display: inline-block; padding: 1px 6px; margin-left: 6px;
+    background: var(--warn); color: #1a1004;
+    font-size: 9px; font-weight: 800; border-radius: 4px;
+    letter-spacing: .5px;
+  }
+
   /* Loading */
   .spinner {
     width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.2);
@@ -423,6 +585,7 @@
     <button class="vtab active" data-view="loads"   role="tab">Loads</button>
     <button class="vtab"        data-view="payroll" role="tab">Payroll</button>
     <button class="vtab"        data-view="fuel"    role="tab">Fuel</button>
+    <button class="vtab"        data-view="drivers" role="tab">P&amp;L</button>
   </div>
 </header>
 
@@ -430,21 +593,39 @@
   Demo mode — no backend connected. Paste your Google Apps Script URL in ⚙ Settings to save real data.
 </div>
 
-<!-- ================== LOADS VIEW ================== -->
+<!-- ================== LOADS VIEW (weekly) ================== -->
 <div id="loadsView">
-  <section class="stats" id="stats"></section>
-  <div class="filters" id="filters">
-    <button class="chip new-chip" data-filter="new">⭐ New (needs driver)</button>
-    <button class="chip active" data-filter="week">This Week</button>
-    <button class="chip" data-filter="all">All</button>
-    <button class="chip" data-filter="Booked">Booked</button>
-    <button class="chip" data-filter="Dispatched">Dispatched</button>
-    <button class="chip" data-filter="In Transit">In Transit</button>
-    <button class="chip" data-filter="Delivered">Delivered</button>
-    <button class="chip" data-filter="Invoiced">Invoiced</button>
-    <button class="chip" data-filter="Paid">Paid</button>
+  <div class="lb-header">
+    <div>
+      <div class="lb-co-name">HCH LOGISTICS LLC</div>
+      <div class="lb-co-addr">7192 Allegheny Dr, Frederick, MD 21702 · Week: <span id="lbWeekText">—</span> (Fri→Thu)</div>
+    </div>
+    <div class="lb-week-badge">PAYROLL WEEK<br><span id="lbWeekRange">—</span></div>
   </div>
-  <main class="list" id="list"></main>
+  <div class="week-nav no-print">
+    <button class="icon-btn" id="btnLbWeekPrev" aria-label="Previous week">◀</button>
+    <button class="icon-btn" id="btnLbWeekToday" title="This week">●</button>
+    <button class="icon-btn" id="btnLbWeekNext" aria-label="Next week">▶</button>
+    <button class="chip new-chip" id="btnLbNewFilter" style="margin-left:8px">⭐ Show only NEW (need driver)</button>
+  </div>
+  <section class="lb-stats" id="lbStats"></section>
+  <div class="lb-legend">
+    <div><b>Fees:</b>
+      <span class="fee-tag">RXO 2.5%</span>
+      <span class="fee-tag">KNX 3.5%</span>
+      <span class="fee-tag">CH Robinson 2%</span>
+      <span class="fee-tag">Uber $30</span>
+      <span class="fee-tag">UPS 2.5%</span>
+    </div>
+    <div class="lb-status-legend">
+      <span><span class="dot active"></span>Active</span>
+      <span><span class="dot invoiced"></span>Invoiced</span>
+      <span><span class="dot paid"></span>Paid</span>
+    </div>
+  </div>
+  <div class="lb-table-wrap">
+    <table class="lb-table" id="lbTable"></table>
+  </div>
 </div>
 
 <!-- ================== PAYROLL VIEW ================== -->
@@ -504,6 +685,18 @@
   <div class="pay-actions no-print">
     <button class="btn btn-secondary" id="btnPrint">Print / Save PDF</button>
   </div>
+</div>
+
+<!-- ================== DRIVERS / P&L VIEW ================== -->
+<div id="driversView" style="display:none">
+  <div class="week-nav">
+    <button class="icon-btn" id="btnDrvWeekPrev" aria-label="Previous week">◀</button>
+    <div class="week-label" id="drvWeekLabel">—</div>
+    <button class="icon-btn" id="btnDrvWeekNext" aria-label="Next week">▶</button>
+    <button class="icon-btn" id="btnDrvWeekToday" title="This week">●</button>
+  </div>
+  <div class="list" id="driversList"></div>
+  <div class="company-total" id="companyTotal"></div>
 </div>
 
 <!-- ================== FUEL VIEW ================== -->
@@ -588,6 +781,11 @@
           <label>Truck #</label>
           <input name="Truck" placeholder="101" />
         </div>
+        <div>
+          <label>Trailer # <span style="font-weight:500;text-transform:none">— UPS moves</span></label>
+          <input name="TrailerNumber" placeholder="BOWZ200233" style="text-transform:uppercase" />
+        </div>
+        <div></div>
 
         <div class="full"><hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" /></div>
         <div>
@@ -778,8 +976,10 @@ const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyGK5qc0wPK2ndj
 let STATE = {
   apiUrl: localStorage.getItem(LS_KEY_API) || DEFAULT_API_URL,
   apiToken: localStorage.getItem(LS_KEY_TOKEN) || "",
-  view: "loads",           // "loads" | "payroll" | "fuel"
+  view: "loads",           // "loads" | "payroll" | "fuel" | "drivers"
   filter: "week",
+  lbWeekStart: null,       // weekly view (loads tab)
+  lbShowOnlyNew: false,
   loads: [],
   extras: [],
   fuel: [],
@@ -790,6 +990,8 @@ let STATE = {
   // Fuel view state
   fuelDriver: "all",       // "all" or driver name
   fuelWeekStart: null,
+  // Drivers/P&L view state
+  drvWeekStart: null,
 };
 
 /* ---- Demo data (shown if no API URL is configured) ---- */
@@ -819,6 +1021,30 @@ function todayStr(offsetDays){
 function $(sel, root=document){ return root.querySelector(sel); }
 function $$(sel, root=document){ return [...root.querySelectorAll(sel)]; }
 function fmt$(n){ if (n==null || isNaN(n)) return "—"; return "$" + Number(n).toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:2}); }
+
+/* Broker factoring fees taken off each load before HCH gets paid. */
+const BROKER_FEES = {
+  "RXO":          { type: "percent", value: 2.5 },
+  "Knight":       { type: "percent", value: 3.5 },
+  "KNX":          { type: "percent", value: 3.5 },
+  "CH Robinson":  { type: "percent", value: 2 },
+  "Chrobinson":   { type: "percent", value: 2 },
+  "CHR":          { type: "percent", value: 2 },
+  "Uber Freight": { type: "flat",    value: 30 },
+  "Uber":         { type: "flat",    value: 30 },
+};
+function brokerFee(broker, rate){
+  if (!rate || rate <= 0) return 0;
+  const cfg = BROKER_FEES[broker] || BROKER_FEES[(broker||"").trim()];
+  if (!cfg) return 0;
+  if (cfg.type === "flat") return cfg.value;
+  return Math.round(rate * (cfg.value / 100) * 100) / 100;
+}
+function feeLabel(broker){
+  const cfg = BROKER_FEES[broker];
+  if (!cfg) return "";
+  return cfg.type === "flat" ? "$"+cfg.value+" flat" : cfg.value + "%";
+}
 function fmtDate(s){ if(!s) return ""; try { const d = new Date(s); if (isNaN(d)) return s;
   return d.toLocaleDateString(undefined, {month:"short", day:"numeric"});} catch(e){ return s; } }
 // Friday-Thursday week. Pass a Date to get the Friday that starts its pay-week.
@@ -988,23 +1214,25 @@ function statusClass(s){ return (s||"").toLowerCase().replace(/\s+/g,"-"); }
 
 function render(){
   $("#configBanner").style.display = STATE.apiUrl ? "none" : "";
-  const loadsView = $("#loadsView"), payrollView = $("#payrollView"), fuelView = $("#fuelView");
-  loadsView.style.display = payrollView.style.display = fuelView.style.display = "none";
+  const loadsView = $("#loadsView"), payrollView = $("#payrollView"), fuelView = $("#fuelView"), driversView = $("#driversView");
+  loadsView.style.display = payrollView.style.display = fuelView.style.display = driversView.style.display = "none";
+  const fab = $("#btnAdd");
+  fab.style.display = "";
   if (STATE.view === "payroll"){
     payrollView.style.display = "";
     renderPayroll();
   } else if (STATE.view === "fuel"){
     fuelView.style.display = "";
     renderFuel();
+  } else if (STATE.view === "drivers"){
+    driversView.style.display = "";
+    fab.style.display = "none";   // no add button in P&L view
+    renderDrivers();
   } else {
     loadsView.style.display = "";
-    renderStats();
-    renderList();
+    renderLoadboard();
   }
-  // Update FAB label
-  const fab = $("#btnAdd");
   if (STATE.view === "fuel") fab.setAttribute("aria-label","Add fuel receipt");
-  else if (STATE.view === "payroll") fab.setAttribute("aria-label","Add load");
   else fab.setAttribute("aria-label","Add load");
   populateDriverDatalist();
 }
@@ -1015,39 +1243,115 @@ function populateDriverDatalist(){
 }
 
 function renderStatsLoading(){
-  $("#stats").innerHTML = `<div class="stat"><div class="label">Loading…</div><div class="value"><span class="spinner"></span></div></div>`;
+  $("#lbStats").innerHTML = `<div class="stat"><div class="label">Loading…</div><div class="value"><span class="spinner"></span></div></div>`;
 }
 
-function renderStats(){
-  const weekLoads = STATE.loads.filter(inWeek);
-  const weekRev = weekLoads.reduce((a,l)=> a + (Number(l.Rate)||0), 0);
-  const inTransit = STATE.loads.filter(l => l.Status === "In Transit").length;
-  const activeRevenue = STATE.loads
-    .filter(l => ["Booked","Dispatched","In Transit","Delivered","Invoiced"].includes(l.Status))
-    .reduce((a,l)=> a + (Number(l.Rate)||0), 0);
-  const newCount = STATE.loads.filter(isNewFromGmail).length;
-  $("#stats").innerHTML = `
-    <div class="stat" ${newCount>0?'style="border-color:var(--warn);cursor:pointer" onclick="document.querySelector(\'.new-chip\').click()"':''}>
-      <div class="label" ${newCount>0?'style="color:var(--warn)"':''}>⭐ New from Gmail</div>
-      <div class="value" ${newCount>0?'style="color:var(--warn)"':''}>${newCount}</div>
-      <div class="sub">need driver</div>
-    </div>
-    <div class="stat">
-      <div class="label">This Week</div>
-      <div class="value">${weekLoads.length}</div>
-      <div class="sub">${fmt$(weekRev)}</div>
-    </div>
-    <div class="stat">
-      <div class="label">In Transit</div>
-      <div class="value">${inTransit}</div>
-      <div class="sub">trucks rolling</div>
-    </div>
-    <div class="stat">
-      <div class="label">Open AR</div>
-      <div class="value money">${fmt$(activeRevenue)}</div>
-      <div class="sub">not yet paid</div>
-    </div>
+function renderLoadboard(){
+  if (!STATE.lbWeekStart) STATE.lbWeekStart = weekStartFri(new Date());
+  const fri = STATE.lbWeekStart;
+  const thu = weekEndThu(fri);
+  $("#lbWeekText").textContent = fmtWeekLabel(fri);
+  $("#lbWeekRange").textContent = (fri.getMonth()+1)+"/"+fri.getDate()+" – "+(thu.getMonth()+1)+"/"+thu.getDate();
+
+  // Filter: loads with PickupDate in this week
+  let weekLoads = STATE.loads.filter(l => {
+    if (!l.PickupDate) return false;
+    const d = new Date(l.PickupDate); return d >= fri && d <= thu;
+  });
+  if (STATE.lbShowOnlyNew) weekLoads = weekLoads.filter(isNewFromGmail);
+
+  // Sort by date asc, then by created
+  weekLoads.sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||"") || (a.CreatedAt||"").localeCompare(b.CreatedAt||""));
+
+  // Stats: gross, fees, diesel (for week), driver pay, net
+  const gross = weekLoads.reduce((a,l) => a + (Number(l.Rate)||0), 0);
+  const fees  = weekLoads.reduce((a,l) => a + brokerFee(l.Broker, Number(l.Rate)||0), 0);
+  const diesel = STATE.fuel.filter(f => {
+    if (!f.Date) return false;
+    const d = new Date(f.Date); return d >= fri && d <= thu;
+  }).reduce((a,f) => a + (Number(f.TotalAmount)||0), 0);
+  const driverPay = weekLoads.reduce((a,l) => a + (Number(l.DriverPay)||0), 0)
+    + STATE.extras.filter(x => {
+        if (!x.Date) return false;
+        const d = new Date(x.Date); return d >= fri && d <= thu;
+      }).reduce((a,x) => a + (Number(x.Amount)||0), 0);
+  const netProfit = gross - fees - diesel - driverPay;
+
+  $("#lbStats").innerHTML = `
+    <div class="stat lb-stat-gross"><div class="label">GROSS REVENUE</div><div class="value">${fmt$(gross)}</div></div>
+    <div class="stat lb-stat-fees"><div class="label">QUICK PAY FEES</div><div class="value">${fmt$(fees)}</div></div>
+    <div class="stat lb-stat-diesel"><div class="label">DIESEL</div><div class="value">${fmt$(diesel)}</div></div>
+    <div class="stat lb-stat-pay"><div class="label">DRIVER PAY</div><div class="value">${fmt$(driverPay)}</div></div>
+    <div class="stat lb-stat-net"><div class="label">NET PROFIT</div><div class="value">${fmt$(netProfit)}</div></div>
   `;
+
+  // Update NEW button toggle visual
+  const newBtn = $("#btnLbNewFilter");
+  const newCount = STATE.loads.filter(isNewFromGmail).length;
+  newBtn.textContent = STATE.lbShowOnlyNew
+    ? `✓ Showing ${weekLoads.length} NEW (clear)`
+    : `⭐ ${newCount} NEW need driver — show only`;
+  newBtn.classList.toggle("active", STATE.lbShowOnlyNew);
+
+  // Build table: header row + rows grouped by day, sub-grouped by trailer-or-not
+  let tbody = `<thead><tr>
+    <th class="col-status"></th>
+    <th>Date</th><th>Driver</th><th>Trailer</th><th>Carrier</th>
+    <th>Pickup</th><th>Delivery</th>
+    <th style="text-align:right">Rate</th>
+    <th>Fee</th>
+    <th style="text-align:right">Net</th>
+    <th>Load #</th>
+  </tr></thead><tbody>`;
+
+  if (!weekLoads.length){
+    tbody += `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">
+      ${STATE.lbShowOnlyNew ? "No NEW loads this week." : "No loads this week. Tap <b>+</b> to add one or wait for the next email pull."}
+    </td></tr>`;
+  } else {
+    let lastDay = null;
+    let lastWasTrailer = null;
+    weekLoads.forEach(l => {
+      const day = (l.PickupDate||"").slice(0,10);
+      const isTrailer = !!(l.TrailerNumber && String(l.TrailerNumber).trim());
+      if (day !== lastDay){
+        lastDay = day; lastWasTrailer = null;
+        const dt = new Date(day + "T12:00");
+        const dayStr = dt.toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric"}).toUpperCase();
+        tbody += `<tr class="day-divider"><td colspan="11">${dayStr}</td></tr>`;
+      }
+      if (isTrailer !== lastWasTrailer){
+        lastWasTrailer = isTrailer;
+        tbody += `<tr class="subsection"><td colspan="11">${isTrailer ? "UPS trailer moves" : "Rate con loads"}</td></tr>`;
+      }
+      const rate = Number(l.Rate)||0;
+      const fee  = brokerFee(l.Broker, rate);
+      const net  = rate - fee;
+      const cfg  = BROKER_FEES[l.Broker];
+      const feePillText = cfg ? (cfg.type==="flat" ? "$"+cfg.value+" flat" : cfg.value+"%") : "—";
+      const dotClass = (l.Status === "Paid") ? "paid" : (l.Status === "Invoiced" ? "invoiced" : "active");
+      const isNew = isNewFromGmail(l);
+      const dt = new Date(l.PickupDate);
+      const md = (dt.getMonth()+1).toString().padStart(2,"0")+"/"+dt.getDate().toString().padStart(2,"0");
+      tbody += `
+        <tr class="load-row${isNew?" is-new":""}" data-id="${l.LoadID}">
+          <td class="col-status"><span class="row-dot ${dotClass}"></span></td>
+          <td>${md}</td>
+          <td class="col-driver">${escapeHtml(l.Driver || "—")}${isNew?'<span class="new-row-tag">NEW</span>':''}</td>
+          <td>${l.TrailerNumber ? `<span class="trailer-pill">${escapeHtml(l.TrailerNumber)}</span>` : "—"}</td>
+          <td>${escapeHtml(l.Broker || "—")}</td>
+          <td>${escapeHtml([l.OriginCity, l.OriginState].filter(Boolean).join(", ") || "—")}</td>
+          <td>${escapeHtml([l.DestCity, l.DestState].filter(Boolean).join(", ") || "—")}</td>
+          <td class="col-rate" style="text-align:right">${rate?fmt$(rate):"—"}</td>
+          <td>${fee>0?`<span class="fee-pill">${feePillText}</span>`:"—"}</td>
+          <td class="col-net" style="text-align:right">${rate?fmt$(net):"—"}</td>
+          <td class="col-load">${escapeHtml(l.LoadNumber || "—")}</td>
+        </tr>`;
+    });
+  }
+  tbody += `</tbody>`;
+  $("#lbTable").innerHTML = tbody;
+  $$("#lbTable .load-row").forEach(el => el.addEventListener("click", ()=> openDetail(el.dataset.id)));
 }
 
 function isNewFromGmail(l){
@@ -1123,7 +1427,7 @@ function openEdit(load){
   const form = $("#editForm");
   form.reset();
   for (const k of ["LoadID","LoadNumber","Broker","OriginCity","OriginState","DestCity","DestState",
-                   "PickupDate","DeliveryDate","Rate","Status","Driver","Truck","Notes","DriverPay"]){
+                   "PickupDate","DeliveryDate","Rate","Status","Driver","Truck","Notes","DriverPay","TrailerNumber"]){
     const el = form.elements[k]; if (!el) continue;
     el.value = load && load[k] != null ? load[k] : "";
   }
@@ -1393,6 +1697,116 @@ function updateFuelPpgPreview(){
   $("#fuelPpgPreview").textContent = (g>0 && t>0) ? "→ $"+(t/g).toFixed(3)+" / gal" : "$/gal will compute automatically";
 }
 
+/* ---------------- Drivers / P&L view ---------------- */
+function renderDrivers(){
+  if (!STATE.drvWeekStart) STATE.drvWeekStart = weekStartFri(new Date());
+  $("#drvWeekLabel").textContent = fmtWeekLabel(STATE.drvWeekStart);
+
+  const [fri, thu] = weekRange(STATE.drvWeekStart);
+
+  // All loads in week (regardless of driver, for unassigned tracking)
+  const wkLoads = STATE.loads.filter(l => {
+    if (!l.PickupDate) return false;
+    const d = new Date(l.PickupDate);
+    return d >= fri && d <= thu;
+  });
+  const wkFuel = STATE.fuel.filter(f => {
+    if (!f.Date) return false;
+    const d = new Date(f.Date);
+    return d >= fri && d <= thu;
+  });
+  const wkExtras = STATE.extras.filter(x => {
+    if (!x.Date) return false;
+    const d = new Date(x.Date);
+    return d >= fri && d <= thu;
+  });
+
+  // Group by driver
+  const drivers = [...new Set([
+    ...wkLoads.map(l => l.Driver).filter(Boolean),
+    ...wkFuel.map(f => f.Driver).filter(Boolean),
+    ...wkExtras.map(x => x.Driver).filter(Boolean),
+  ])].sort();
+
+  const list = $("#driversList");
+  if (!drivers.length){
+    list.innerHTML = `<div class="empty">
+      <div style="font-size:30px;margin-bottom:6px">👤</div>
+      <div><b>No driver activity this week.</b></div>
+      <div style="margin-top:6px">Once you assign drivers to loads + fuel receipts, P&L per driver will show here.</div>
+    </div>`;
+    $("#companyTotal").innerHTML = "";
+    return;
+  }
+
+  let totalGross = 0, totalFees = 0, totalFuel = 0, totalPay = 0;
+  list.innerHTML = drivers.map(name => {
+    const loads = wkLoads.filter(l => l.Driver === name);
+    const fuel  = wkFuel.filter(f => f.Driver === name);
+    const extras = wkExtras.filter(x => x.Driver === name);
+
+    const gross    = loads.reduce((a,l) => a + (Number(l.Rate)||0), 0);
+    const fees     = loads.reduce((a,l) => a + brokerFee(l.Broker, Number(l.Rate)||0), 0);
+    const netRev   = gross - fees;
+    const fuelCost = fuel.reduce((a,f) => a + (Number(f.TotalAmount)||0), 0);
+    const loadPay  = loads.reduce((a,l) => a + (Number(l.DriverPay)||0), 0);
+    const xPay     = extras.reduce((a,x) => a + (Number(x.Amount)||0), 0);
+    const driverPay = loadPay + xPay;
+    const netToHCH = netRev - fuelCost - driverPay;
+    const margin   = gross > 0 ? (netToHCH/gross)*100 : 0;
+    totalGross += gross; totalFees += fees; totalFuel += fuelCost; totalPay += driverPay;
+
+    const marginPill = gross > 0
+      ? `<span class="margin-pill ${margin>40?"":margin>15?"warn":"bad"}">${margin.toFixed(1)}%</span>`
+      : "";
+    const summaryBits = [
+      loads.length + " load" + (loads.length===1?"":"s"),
+      fuel.length + " fuel receipt" + (fuel.length===1?"":"s"),
+      extras.length>0 ? extras.length + " extra" + (extras.length===1?"":"s") : null,
+    ].filter(Boolean).join(" · ");
+
+    // Show fee breakdown by broker for transparency
+    const feeByBroker = {};
+    loads.forEach(l => {
+      const f = brokerFee(l.Broker, Number(l.Rate)||0);
+      if (f > 0) feeByBroker[l.Broker] = (feeByBroker[l.Broker]||0) + f;
+    });
+    const feeBreakdown = Object.keys(feeByBroker).length
+      ? Object.entries(feeByBroker).map(([b,a]) => `${b} ${feeLabel(b)}`).join(", ")
+      : "—";
+
+    return `
+      <div class="driver-card">
+        <div class="name">${escapeHtml(name)}${marginPill}</div>
+        <div class="summary">${summaryBits}</div>
+        <div class="pnl-row gross"><span class="label">Gross (broker rate)</span><span class="amt">${fmt$(gross)}</span></div>
+        <div class="pnl-row cost"><span class="label">− Broker fees<span style="color:var(--muted);font-weight:400;font-size:11px;display:block">${escapeHtml(feeBreakdown)}</span></span><span class="amt">−${fmt$(fees)}</span></div>
+        <div class="pnl-row" style="font-weight:700;color:var(--text);border-top:1px dashed var(--border);padding-top:8px;margin-top:4px"><span class="label">Net revenue</span><span class="amt">${fmt$(netRev)}</span></div>
+        <div class="pnl-row cost"><span class="label">− Fuel</span><span class="amt">−${fmt$(fuelCost)}</span></div>
+        <div class="pnl-row cost"><span class="label">− Driver pay${xPay>0?" (incl. extras)":""}</span><span class="amt">−${fmt$(driverPay)}</span></div>
+        <div class="pnl-row net divider ${netToHCH<0?"negative":""}"><span class="label">HCH profit</span><span class="amt">${fmt$(netToHCH)}</span></div>
+      </div>
+    `;
+  }).join("");
+
+  // Company total
+  const companyNetRev = totalGross - totalFees;
+  const companyNet = companyNetRev - totalFuel - totalPay;
+  const companyMargin = totalGross > 0 ? (companyNet/totalGross)*100 : 0;
+  $("#companyTotal").innerHTML = `
+    <div class="title">Whole company — ${fmtWeekLabel(STATE.drvWeekStart)}</div>
+    <div class="pnl-row gross"><span class="label">Gross (broker rate)</span><span class="amt">${fmt$(totalGross)}</span></div>
+    <div class="pnl-row cost"><span class="label">− Broker fees</span><span class="amt">−${fmt$(totalFees)}</span></div>
+    <div class="pnl-row" style="font-weight:700;color:var(--text);border-top:1px dashed var(--border);padding-top:8px;margin-top:4px"><span class="label">Net revenue</span><span class="amt">${fmt$(companyNetRev)}</span></div>
+    <div class="pnl-row cost"><span class="label">− Fuel</span><span class="amt">−${fmt$(totalFuel)}</span></div>
+    <div class="pnl-row cost"><span class="label">− Driver payouts</span><span class="amt">−${fmt$(totalPay)}</span></div>
+    <div class="pnl-row net divider ${companyNet<0?"negative":""}">
+      <span class="label">HCH PROFIT ${totalGross>0?'<span class="margin-pill '+(companyMargin>40?"":companyMargin>15?"warn":"bad")+'">'+companyMargin.toFixed(1)+'% margin</span>':''}</span>
+      <span class="amt">${fmt$(companyNet)}</span>
+    </div>
+  `;
+}
+
 function openExtraModal(extra){
   const f = $("#extraForm");
   f.reset();
@@ -1443,12 +1857,21 @@ function bind(){
     if (id){ closeEdit(); deleteLoad(id); }
   });
 
-  $$("#filters .chip").forEach(ch => ch.addEventListener("click", ()=> {
-    $$("#filters .chip").forEach(c => c.classList.remove("active"));
-    ch.classList.add("active");
-    STATE.filter = ch.dataset.filter;
-    renderList();
-  }));
+  // Loadboard week nav + NEW toggle
+  $("#btnLbWeekPrev").addEventListener("click", ()=> {
+    const d = new Date(STATE.lbWeekStart); d.setDate(d.getDate()-7);
+    STATE.lbWeekStart = d; renderLoadboard();
+  });
+  $("#btnLbWeekNext").addEventListener("click", ()=> {
+    const d = new Date(STATE.lbWeekStart); d.setDate(d.getDate()+7);
+    STATE.lbWeekStart = d; renderLoadboard();
+  });
+  $("#btnLbWeekToday").addEventListener("click", ()=> {
+    STATE.lbWeekStart = weekStartFri(new Date()); renderLoadboard();
+  });
+  $("#btnLbNewFilter").addEventListener("click", ()=> {
+    STATE.lbShowOnlyNew = !STATE.lbShowOnlyNew; renderLoadboard();
+  });
 
   $("#btnSaveSettings").addEventListener("click", ()=> {
     STATE.apiUrl = $("#apiUrl").value.trim();
@@ -1518,6 +1941,19 @@ function bind(){
   });
   $("#btnFuelWeekToday").addEventListener("click", ()=> {
     STATE.fuelWeekStart = weekStartFri(new Date()); renderFuel();
+  });
+
+  // Drivers (P&L) week nav
+  $("#btnDrvWeekPrev").addEventListener("click", ()=> {
+    const d = new Date(STATE.drvWeekStart); d.setDate(d.getDate()-7);
+    STATE.drvWeekStart = d; renderDrivers();
+  });
+  $("#btnDrvWeekNext").addEventListener("click", ()=> {
+    const d = new Date(STATE.drvWeekStart); d.setDate(d.getDate()+7);
+    STATE.drvWeekStart = d; renderDrivers();
+  });
+  $("#btnDrvWeekToday").addEventListener("click", ()=> {
+    STATE.drvWeekStart = weekStartFri(new Date()); renderDrivers();
   });
   $("#closeExtra").addEventListener("click", closeExtraModal);
   $("#btnCancelExtra").addEventListener("click", closeExtraModal);
