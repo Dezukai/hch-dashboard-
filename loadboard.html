@@ -2071,17 +2071,28 @@ function renderDrivers(){
     `;
   }).join("");
 
-  // Company total
+  // Company total — fuel covers ALL receipts in the week (even ones with no driver assigned).
+  const companyFuelCost = wkFuel.reduce((a,f) => a + (Number(f.TotalAmount)||0), 0);
+
+  // AJX settlement = HCH owes AJX for Victor's loads (full rate − quickpay − Victor's pay).
+  // Subtract from HCH profit because HCH transfers that money to AJX.
+  const victorLoads = wkLoads.filter(l => l.Driver === "Victor");
+  const ajxGross   = victorLoads.reduce((a,l) => a + (Number(l.Rate)||0), 0);
+  const ajxFees    = victorLoads.reduce((a,l) => a + brokerFee(l.Broker, Number(l.Rate)||0), 0);
+  const victorPay  = victorLoads.reduce((a,l) => a + (Number(l.DriverPay)||0), 0);
+  const ajxSettlement = Math.max(0, ajxGross - ajxFees - victorPay);
+
   const companyNetRev = totalGross - totalFees;
-  const companyNet = companyNetRev - totalFuel - totalPay;
+  const companyNet = companyNetRev - companyFuelCost - totalPay - ajxSettlement;
   const companyMargin = totalGross > 0 ? (companyNet/totalGross)*100 : 0;
   $("#companyTotal").innerHTML = `
     <div class="title">Whole company — ${fmtWeekLabel(STATE.drvWeekStart)}</div>
     <div class="pnl-row gross"><span class="label">Gross (broker rate)</span><span class="amt">${fmt$(totalGross)}</span></div>
     <div class="pnl-row cost"><span class="label">− Broker fees</span><span class="amt">−${fmt$(totalFees)}</span></div>
     <div class="pnl-row" style="font-weight:700;color:var(--text);border-top:1px dashed var(--border);padding-top:8px;margin-top:4px"><span class="label">Net revenue</span><span class="amt">${fmt$(companyNetRev)}</span></div>
-    <div class="pnl-row cost"><span class="label">− Fuel</span><span class="amt">−${fmt$(totalFuel)}</span></div>
+    <div class="pnl-row cost"><span class="label">− Fuel <span style="color:var(--muted);font-weight:400;font-size:11px">(${wkFuel.length} receipt${wkFuel.length===1?"":"s"})</span></span><span class="amt">−${fmt$(companyFuelCost)}</span></div>
     <div class="pnl-row cost"><span class="label">− Driver payouts</span><span class="amt">−${fmt$(totalPay)}</span></div>
+    ${ajxSettlement>0 ? `<div class="pnl-row cost"><span class="label">− AJX settlement <span style="color:var(--muted);font-weight:400;font-size:11px">(${victorLoads.length} Victor load${victorLoads.length===1?"":"s"})</span></span><span class="amt">−${fmt$(ajxSettlement)}</span></div>` : ""}
     <div class="pnl-row net divider ${companyNet<0?"negative":""}">
       <span class="label">HCH PROFIT ${totalGross>0?'<span class="margin-pill '+(companyMargin>40?"":companyMargin>15?"warn":"bad")+'">'+companyMargin.toFixed(1)+'% margin</span>':''}</span>
       <span class="amt">${fmt$(companyNet)}</span>
