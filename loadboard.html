@@ -311,25 +311,41 @@
   }
   .pay-actions .btn { max-width: 300px; }
   @media (max-width: 640px) {
-    .payroll-sheet { padding: 12px 10px; margin: 8px; border-radius: 12px; }
-    .pay-table { font-size: 12px; table-layout: fixed; width: 100%; }
-    .pay-table th, .pay-table td { padding: 8px 4px; word-break: break-word; }
+    .payroll-sheet {
+      padding: 12px 8px; margin: 8px; border-radius: 12px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    /* Give the table breathing room — horizontal scroll instead of squishing text */
+    .pay-table {
+      font-size: 13px; table-layout: fixed;
+      width: 100%; min-width: 640px;
+    }
+    .pay-table th, .pay-table td {
+      padding: 10px 8px; word-break: normal; overflow-wrap: break-word;
+    }
+    .pay-table th {
+      font-size: 11px; padding: 8px;
+    }
+    .pay-table .date-col { white-space: nowrap; }
     .pay-table .amount-col {
-      font-size: 13px; padding: 8px 4px;
+      font-size: 14px; padding: 10px 8px;
       white-space: nowrap; overflow: visible;
     }
-    .pay-table input.cell-input { font-size: 12px; padding: 4px 6px; }
-    .pay-table input.pay-cell { font-size: 13px; min-width: 0; }
-    /* On mobile re-balance columns so the dollar amount has room */
-    .pay-table col.c-date    { width: 14%; }
+    .pay-table input.cell-input { font-size: 13px; padding: 6px 8px; }
+    .pay-table input.pay-cell { font-size: 14px; min-width: 0; padding: 6px 4px; }
+    /* Mobile column balance — total gets enough room for $1,200 */
+    .pay-table col.c-date    { width: 13%; }
     .pay-table col.c-carrier { width: 14%; }
     .pay-table col.c-pickup  { width: 16%; }
     .pay-table col.c-deliv   { width: 16%; }
-    .pay-table col.c-comment { width: 16%; }
-    .pay-table col.c-total   { width: 24%; }
-    .pay-table tfoot .grand-amt { font-size: 14px; padding: 10px 6px; }
+    .pay-table col.c-comment { width: 23%; }
+    .pay-table col.c-total   { width: 18%; }
+    .pay-table tfoot .grand-amt { font-size: 15px; padding: 12px 8px; }
     .driver-name { font-size: 16px; padding: 8px 12px; }
     .co-name { font-size: 16px; }
+    /* Subtle scroll hint */
+    .payroll-sheet::-webkit-scrollbar { height: 6px; }
+    .payroll-sheet::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     /* Tabs across the top scroll horizontally if too many */
     .view-switch {
       display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
@@ -1541,12 +1557,19 @@ function renderLoadboard(){
   $("#lbWeekText").textContent = fmtWeekLabel(fri);
   $("#lbWeekRange").textContent = (fri.getMonth()+1)+"/"+fri.getDate()+" – "+(thu.getMonth()+1)+"/"+thu.getDate();
 
-  // Filter: loads with PickupDate in this week (all statuses — Invoiced/Paid still show here AND on their own tabs)
-  let weekLoads = STATE.loads.filter(l => {
-    if (!l.PickupDate) return false;
-    const d = parseLocalDate(l.PickupDate); return d >= fri && d <= thu;
-  });
-  if (STATE.lbShowOnlyNew) weekLoads = weekLoads.filter(isNewFromGmail);
+  // Filter: loads with PickupDate in this week (all statuses)
+  // EXCEPTION: when "show only NEW" toggle is on, ignore week boundary so NEW loads
+  // from past/future weeks aren't hidden — user wants to see them regardless of when.
+  let weekLoads;
+  if (STATE.lbShowOnlyNew){
+    weekLoads = STATE.loads.filter(isNewFromGmail);
+    weekLoads.sort((a,b) => (b.CreatedAt||"").localeCompare(a.CreatedAt||""));
+  } else {
+    weekLoads = STATE.loads.filter(l => {
+      if (!l.PickupDate) return false;
+      const d = parseLocalDate(l.PickupDate); return d >= fri && d <= thu;
+    });
+  }
 
   // Sort by date asc, then by created
   weekLoads.sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||"") || (a.CreatedAt||"").localeCompare(b.CreatedAt||""));
