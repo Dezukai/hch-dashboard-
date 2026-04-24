@@ -860,7 +860,14 @@
 
         <div>
           <label>Driver</label>
-          <input name="Driver" placeholder="Driver name" list="driverList" />
+          <select name="Driver">
+            <option value="">— Unassigned —</option>
+            <option value="Jose Luis">Jose Luis</option>
+            <option value="Santiago">Santiago</option>
+            <option value="Victor">Victor</option>
+            <option value="Cesar">Cesar</option>
+            <option value="Henry">Henry</option>
+          </select>
         </div>
         <div>
           <label>Truck #</label>
@@ -929,7 +936,14 @@
         </div>
         <div>
           <label>Driver</label>
-          <input name="Driver" placeholder="Driver name" list="driverList" />
+          <select name="Driver">
+            <option value="">— Unassigned —</option>
+            <option value="Jose Luis">Jose Luis</option>
+            <option value="Santiago">Santiago</option>
+            <option value="Victor">Victor</option>
+            <option value="Cesar">Cesar</option>
+            <option value="Henry">Henry</option>
+          </select>
         </div>
         <div>
           <label>Truck #</label>
@@ -1602,14 +1616,17 @@ function openSettings(){
 function closeSettings(){ $("#modalSettings").classList.remove("open"); }
 
 /* ---------------- Payroll view ---------------- */
+// Fixed list of drivers — used for chips, dropdowns, and validation.
+// Order shown in the UI matches this order.
+const DRIVERS_LIST = ["Jose Luis", "Santiago", "Victor", "Cesar", "Henry"];
+
 // Map short driver names (used in chips/data) → full legal names (used on printable payroll).
 const DRIVER_FULL_NAMES = {
-  "Jose":     "Jose Rivera Rios",
-  "Rivera":   "Jose Rivera Rios",
-  "Santiago": "Jose Santiago Echeverria",
-  "Victor":   "Victor Sinforiano Villatoro",
-  "Cesar":    "Cesar Hernandez",
-  "Henry":    "Henry Hernandez",
+  "Jose Luis": "Jose Rivera Rios",
+  "Santiago":  "Jose Santiago Echeverria",
+  "Victor":    "Victor Sinforiano Villatoro",
+  "Cesar":     "Cesar Hernandez",
+  "Henry":     "Henry Hernandez",
 };
 function fullDriverName(d){
   if (!d) return "—";
@@ -1620,15 +1637,11 @@ function renderPayroll(){
   if (!STATE.payWeekStart) STATE.payWeekStart = weekStartFri(new Date());
   $("#weekLabel").textContent = fmtWeekLabel(STATE.payWeekStart);
 
-  // Driver chips
-  const drivers = [...new Set(STATE.loads.map(l => l.Driver).filter(Boolean))].sort();
-  if (!STATE.payDriver && drivers.length) STATE.payDriver = drivers[0];
-  $("#driverChips").innerHTML = drivers.length ? drivers.map(d =>
-    `<button class="chip ${d === STATE.payDriver ? "active" : ""}" data-driver="${d.replace(/"/g,"&quot;")}">${escapeHtml(d)}</button>`
-  ).join("") : `<div class="empty" style="flex:1">
-    <div><b>No drivers yet.</b></div>
-    <div style="margin-top:6px;font-size:13px">Assign a driver to any load (tap it → Edit → Driver) and they'll show up here.</div>
-  </div>`;
+  // Driver chips — fixed list of 5
+  if (!STATE.payDriver) STATE.payDriver = DRIVERS_LIST[0];
+  $("#driverChips").innerHTML = DRIVERS_LIST.map(d =>
+    `<button class="chip ${d === STATE.payDriver ? "active" : ""}" data-driver="${escapeHtml(d)}">${escapeHtml(d)}</button>`
+  ).join("");
 
   // Driver name display at top of the payroll sheet — use full legal name.
   $("#driverNameDisplay").textContent = fullDriverName(STATE.payDriver);
