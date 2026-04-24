@@ -353,6 +353,14 @@
     cursor: pointer; padding: 0 6px;
   }
 
+  /* AJX chip — visually distinct so user knows it's a special carrier-settlement view */
+  .chip.chip-company {
+    background: linear-gradient(135deg, rgba(34,197,94,.18), rgba(14,165,233,.18));
+    border: 1px solid var(--accent);
+    color: var(--text);
+  }
+  .chip.chip-company.active { background: var(--accent); color: #0b1220; }
+
   /* Extras block — lives inside the printable payroll-sheet box */
   .extras-block {
     margin-top: 18px;
@@ -727,7 +735,7 @@
         <col class="c-total" />
       </colgroup>
       <thead>
-        <tr>
+        <tr id="payHeadDriver">
           <th>Date</th>
           <th>Carrier</th>
           <th>Pickup</th>
@@ -1637,14 +1645,30 @@ function renderPayroll(){
   if (!STATE.payWeekStart) STATE.payWeekStart = weekStartFri(new Date());
   $("#weekLabel").textContent = fmtWeekLabel(STATE.payWeekStart);
 
-  // Driver chips — fixed list of 5
+  // Driver chips — fixed list of 5 + AJX (carrier-company settlement for Victor's loads)
   if (!STATE.payDriver) STATE.payDriver = DRIVERS_LIST[0];
-  $("#driverChips").innerHTML = DRIVERS_LIST.map(d =>
-    `<button class="chip ${d === STATE.payDriver ? "active" : ""}" data-driver="${escapeHtml(d)}">${escapeHtml(d)}</button>`
+  const allChips = [...DRIVERS_LIST, "AJX"];
+  $("#driverChips").innerHTML = allChips.map(d =>
+    `<button class="chip ${d === STATE.payDriver ? "active" : ""} ${d === "AJX" ? "chip-company" : ""}" data-driver="${escapeHtml(d)}">${escapeHtml(d)}</button>`
   ).join("");
+
+  // If AJX is selected, render the carrier-settlement view and stop.
+  if (STATE.payDriver === "AJX"){
+    renderAjxSettlement();
+    return;
+  }
 
   // Driver name display at top of the payroll sheet — use full legal name.
   $("#driverNameDisplay").textContent = fullDriverName(STATE.payDriver);
+
+  // Restore the standard driver-payroll table header (in case we were previously on AJX)
+  $("#payHeadDriver").innerHTML = `
+    <th>Date</th>
+    <th>Carrier</th>
+    <th>Pickup</th>
+    <th>Delivery</th>
+    <th>Comments</th>
+    <th>Total</th>`;
 
   // Filter loads for this driver + this week, sort by pickup date
   const weekLoads = STATE.loads.filter(l =>
@@ -1756,6 +1780,81 @@ function extraRowHtml(x){
       <td class="amount-col">${fmt$(x.Amount)}</td>
     </tr>
   `;
+}
+
+/* AJX carrier settlement: Victor's loads minus quickpay fees minus driver pay = AJX take-home. */
+function renderAjxSettlement(){
+  // Victor's loads in current pay week
+  const weekLoads = STATE.loads
+    .filter(l => l.Driver === "Victor" && inWeek(l, STATE.payWeekStart))
+    .sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||""));
+
+  $("#driverNameDisplay").textContent = "AJX Logistics";
+
+  // Swap table header to AJX-specific columns
+  $("#payHeadDriver").innerHTML = `
+    <th>Date</th>
+    <th>Carrier</th>
+    <th>Lane</th>
+    <th>Quickpay</th>
+    <th>Driver pay</th>
+    <th>AJX net</th>`;
+
+  const tbody = $("#payTbody");
+  if (!weekLoads.length){
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">
+      No Victor loads this week. Use ◀ ▶ to change week.</td></tr>`;
+    $("#payGrandTotal").textContent = fmt$(0);
+    $("#extrasList").innerHTML = `<div class="empty" style="padding:18px;margin:0 16px">AJX settlement is auto-calculated from Victor's loads. No manual extras here.</div>`;
+    return;
+  }
+
+  let totalGross = 0, totalQp = 0, totalDriver = 0;
+  let rowsHtml = weekLoads.map(l => {
+    const d = parseLocalDate(l.PickupDate) || new Date();
+    const dow = d.toLocaleDateString(undefined,{weekday:"long"});
+    const mm = (d.getMonth()+1).toString().padStart(2,"0");
+    const dd = d.getDate().toString().padStart(2,"0");
+    const carrier = l.TrailerNumber ? String(l.TrailerNumber) : (l.Broker || "");
+    const lane = (l.OriginCity||"?") + " → " + (l.DestCity||"?");
+    const gross = Number(l.Rate) || 0;
+    const qp = brokerFee(l.Broker, gross);
+    const drv = Number(l.DriverPay) || 0;
+    const ajx = gross - qp - drv;
+    totalGross += gross; totalQp += qp; totalDriver += drv;
+    return `
+      <tr>
+        <td class="date-col"><b>${dow}</b><br>${mm}/${dd}</td>
+        <td>${escapeHtml(carrier || "—")}</td>
+        <td>${escapeHtml(lane)}</td>
+        <td class="amount-col" style="color:var(--muted)">−${fmt$(qp)}<br><span style="font-size:11px">${escapeHtml(feeLabel(l.Broker))}</span></td>
+        <td class="amount-col" style="color:var(--muted)">−${fmt$(drv)}<br><span style="font-size:11px">Victor</span></td>
+        <td class="amount-col" style="color:var(--accent);font-weight:800">${fmt$(ajx)}</td>
+      </tr>`;
+  }).join("");
+  tbody.innerHTML = rowsHtml;
+
+  const totalAjx = totalGross - totalQp - totalDriver;
+  $("#payGrandTotal").textContent = fmt$(totalAjx);
+
+  // Show summary in the extras section instead of regular extras
+  $("#extrasList").innerHTML = `
+    <div class="extra-row" style="grid-template-columns:1fr auto">
+      <div><b>Gross revenue</b><div style="color:var(--muted);font-size:12px">${weekLoads.length} load${weekLoads.length===1?"":"s"} for Victor</div></div>
+      <div class="amt" style="color:var(--text)">${fmt$(totalGross)}</div>
+    </div>
+    <div class="extra-row" style="grid-template-columns:1fr auto">
+      <div><b>Quickpay fees</b><div style="color:var(--muted);font-size:12px">Broker deductions</div></div>
+      <div class="amt" style="color:var(--danger)">−${fmt$(totalQp)}</div>
+    </div>
+    <div class="extra-row" style="grid-template-columns:1fr auto">
+      <div><b>Driver pay</b><div style="color:var(--muted);font-size:12px">Paid to Victor</div></div>
+      <div class="amt" style="color:var(--danger)">−${fmt$(totalDriver)}</div>
+    </div>
+    <div class="extra-row" style="grid-template-columns:1fr auto;background:linear-gradient(135deg, rgba(34,197,94,.15), rgba(14,165,233,.15));border:1px solid var(--accent)">
+      <div><b>AJX take-home</b></div>
+      <div class="amt" style="color:var(--accent);font-size:18px">${fmt$(totalAjx)}</div>
+    </div>`;
 }
 
 function escapeHtml(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
