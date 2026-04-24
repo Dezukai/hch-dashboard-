@@ -353,6 +353,18 @@
     cursor: pointer; padding: 0 6px;
   }
 
+  /* Extras block — lives inside the printable payroll-sheet box */
+  .extras-block {
+    margin-top: 18px;
+    padding: 14px 16px 6px;
+    border-top: 2px solid var(--border);
+  }
+  .extras-block .section-head { padding: 0 0 10px; }
+  .extras-block .list { padding: 0; gap: 8px; display: flex; flex-direction: column; }
+  .extras-block .extra-row {
+    background: var(--panel-2);
+  }
+
   /* Payroll total */
   .pay-total {
     margin: 18px 16px 10px; padding: 14px 16px;
@@ -733,13 +745,15 @@
         </tr>
       </tfoot>
     </table>
-  </div>
 
-  <div class="section-head no-print">
-    <div>Extra compensation / deductions</div>
-    <button class="tiny-btn" id="btnAddExtra">+ Add</button>
+    <div class="extras-block">
+      <div class="section-head">
+        <div>Extra compensation / deductions</div>
+        <button class="tiny-btn no-print" id="btnAddExtra">+ Add</button>
+      </div>
+      <div class="list" id="extrasList" style="padding-top:0"></div>
+    </div>
   </div>
-  <div class="list no-print" id="extrasList" style="padding-top:0"></div>
 
   <div class="pay-actions no-print">
     <button class="btn btn-secondary" id="btnPrint">Print / Save PDF</button>
@@ -1576,6 +1590,20 @@ function openSettings(){
 function closeSettings(){ $("#modalSettings").classList.remove("open"); }
 
 /* ---------------- Payroll view ---------------- */
+// Map short driver names (used in chips/data) → full legal names (used on printable payroll).
+const DRIVER_FULL_NAMES = {
+  "Jose":     "Jose Rivera Rios",
+  "Rivera":   "Jose Rivera Rios",
+  "Santiago": "Jose Santiago Echeverria",
+  "Victor":   "Victor Sinforiano Villatoro",
+  "Cesar":    "Cesar Hernandez",
+  "Henry":    "Henry Hernandez",
+};
+function fullDriverName(d){
+  if (!d) return "—";
+  return DRIVER_FULL_NAMES[d] || d;
+}
+
 function renderPayroll(){
   if (!STATE.payWeekStart) STATE.payWeekStart = weekStartFri(new Date());
   $("#weekLabel").textContent = fmtWeekLabel(STATE.payWeekStart);
@@ -1590,8 +1618,8 @@ function renderPayroll(){
     <div style="margin-top:6px;font-size:13px">Assign a driver to any load (tap it → Edit → Driver) and they'll show up here.</div>
   </div>`;
 
-  // Driver name display at top of the payroll sheet
-  $("#driverNameDisplay").textContent = STATE.payDriver || "—";
+  // Driver name display at top of the payroll sheet — use full legal name.
+  $("#driverNameDisplay").textContent = fullDriverName(STATE.payDriver);
 
   // Filter loads for this driver + this week, sort by pickup date
   const weekLoads = STATE.loads.filter(l =>
@@ -1674,7 +1702,8 @@ function payRowHtml(l){
   const dd = d.getDate().toString().padStart(2,"0");
   const origin = [l.OriginCity, l.OriginState].filter(Boolean).join(" ");
   const dest = [l.DestCity, l.DestState].filter(Boolean).join(" ");
-  const carrier = [l.Broker, l.LoadNumber].filter(Boolean).join(" ");
+  // Carrier column shows broker name; for UPS trailer pulls (where TrailerNumber is set) show only the trailer number.
+  const carrier = l.TrailerNumber ? String(l.TrailerNumber) : (l.Broker || "");
   const payVal = l.DriverPay != null && l.DriverPay !== "" ? l.DriverPay : "";
   return `
     <tr>
