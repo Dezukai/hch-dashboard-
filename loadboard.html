@@ -1130,9 +1130,21 @@ function feeLabel(broker){
   if (!cfg) return "";
   return cfg.type === "flat" ? "$"+cfg.value+" flat" : cfg.value + "%";
 }
-function fmtDate(s){ if(!s) return ""; try { const d = new Date(s); if (isNaN(d)) return s;
+function fmtDate(s){ if(!s) return ""; try { const d = parseLocalDate(s) || new Date(s); if (isNaN(d)) return s;
   return d.toLocaleDateString(undefined, {month:"short", day:"numeric"});} catch(e){ return s; } }
 // Friday-Thursday week. Pass a Date to get the Friday that starts its pay-week.
+// Parse a YYYY-MM-DD string as a LOCAL date (avoids UTC timezone shift that pulls
+// 2026-04-17 back to Apr 16 in Eastern Time). For other inputs, fall through to native Date.
+function parseLocalDate(s){
+  if (s == null || s === "") return null;
+  if (s instanceof Date) return s;
+  if (typeof s === "string"){
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  return new Date(s);
+}
+
 function weekStartFri(d){
   d = d ? new Date(d) : new Date();
   const dow = d.getDay(); // 0=Sun..6=Sat
@@ -1150,8 +1162,8 @@ function weekRange(d){
 }
 function inWeek(load, ref){
   const [fri, thu] = weekRange(ref);
-  const pick = load.PickupDate ? new Date(load.PickupDate) : null;
-  const deli = load.DeliveryDate ? new Date(load.DeliveryDate) : null;
+  const pick = parseLocalDate(load.PickupDate);
+  const deli = parseLocalDate(load.DeliveryDate);
   if (pick && pick >= fri && pick <= thu) return true;
   if (deli && deli >= fri && deli <= thu) return true;
   return false;
@@ -1341,7 +1353,7 @@ function renderLoadboard(){
   // Filter: loads with PickupDate in this week
   let weekLoads = STATE.loads.filter(l => {
     if (!l.PickupDate) return false;
-    const d = new Date(l.PickupDate); return d >= fri && d <= thu;
+    const d = parseLocalDate(l.PickupDate); return d >= fri && d <= thu;
   });
   if (STATE.lbShowOnlyNew) weekLoads = weekLoads.filter(isNewFromGmail);
 
@@ -1353,12 +1365,12 @@ function renderLoadboard(){
   const fees  = weekLoads.reduce((a,l) => a + brokerFee(l.Broker, Number(l.Rate)||0), 0);
   const diesel = STATE.fuel.filter(f => {
     if (!f.Date) return false;
-    const d = new Date(f.Date); return d >= fri && d <= thu;
+    const d = parseLocalDate(f.Date); return d >= fri && d <= thu;
   }).reduce((a,f) => a + (Number(f.TotalAmount)||0), 0);
   const driverPay = weekLoads.reduce((a,l) => a + (Number(l.DriverPay)||0), 0)
     + STATE.extras.filter(x => {
         if (!x.Date) return false;
-        const d = new Date(x.Date); return d >= fri && d <= thu;
+        const d = parseLocalDate(x.Date); return d >= fri && d <= thu;
       }).reduce((a,x) => a + (Number(x.Amount)||0), 0);
   const netProfit = gross - fees - diesel - driverPay;
 
@@ -1418,7 +1430,7 @@ function renderLoadboard(){
                      : (l.Status === "Invoiced" ? "invoiced"
                      : (l.Status === "Detention" ? "detention" : "active"));
       const isNew = isNewFromGmail(l);
-      const dt = new Date(l.PickupDate);
+      const dt = parseLocalDate(l.PickupDate);
       const md = (dt.getMonth()+1).toString().padStart(2,"0")+"/"+dt.getDate().toString().padStart(2,"0");
       tbody += `
         <tr class="load-row${isNew?" is-new":""}" data-id="${l.LoadID}">
@@ -1631,7 +1643,7 @@ function renderPayroll(){
   const wkExtras = STATE.extras.filter(x => {
     if (x.Driver !== STATE.payDriver) return false;
     if (!x.Date) return false;
-    const d = new Date(x.Date);
+    const d = parseLocalDate(x.Date);
     return d >= fri && d <= thu;
   }).sort((a,b) => (a.Date||"").localeCompare(b.Date||""));
 
@@ -1696,7 +1708,7 @@ function renderPayroll(){
 }
 
 function payRowHtml(l){
-  const d = new Date(l.PickupDate || l.CreatedAt || Date.now());
+  const d = parseLocalDate(l.PickupDate) || new Date(l.CreatedAt || Date.now());
   const dow = d.toLocaleDateString(undefined,{weekday:"long"});
   const mm = (d.getMonth()+1).toString().padStart(2,"0");
   const dd = d.getDate().toString().padStart(2,"0");
@@ -1718,7 +1730,7 @@ function payRowHtml(l){
 }
 
 function extraRowHtml(x){
-  const d = new Date(x.Date);
+  const d = parseLocalDate(x.Date) || new Date();
   const dow = d.toLocaleDateString(undefined,{weekday:"long"});
   const mm = (d.getMonth()+1).toString().padStart(2,"0");
   const dd = d.getDate().toString().padStart(2,"0");
@@ -1752,7 +1764,7 @@ function renderFuel(){
   const [fri, thu] = weekRange(STATE.fuelWeekStart);
   const filtered = STATE.fuel.filter(f => {
     if (!f.Date) return false;
-    const d = new Date(f.Date);
+    const d = parseLocalDate(f.Date);
     return d >= fri && d <= thu;
   }).sort((a,b) => (a.Date||"").localeCompare(b.Date||""));
 
@@ -1784,7 +1796,7 @@ function renderFuel(){
     </td></tr>`;
   } else {
     filtered.forEach(f => {
-      const d = new Date(f.Date);
+      const d = parseLocalDate(f.Date) || new Date();
       const md = (d.getMonth()+1).toString().padStart(2,"0") + "/" + d.getDate().toString().padStart(2,"0");
       const ppg = (Number(f.PricePerGallon)||0);
       const gal = (Number(f.Gallons)||0);
@@ -1865,17 +1877,17 @@ function renderDrivers(){
   // All loads in week (regardless of driver, for unassigned tracking)
   const wkLoads = STATE.loads.filter(l => {
     if (!l.PickupDate) return false;
-    const d = new Date(l.PickupDate);
+    const d = parseLocalDate(l.PickupDate);
     return d >= fri && d <= thu;
   });
   const wkFuel = STATE.fuel.filter(f => {
     if (!f.Date) return false;
-    const d = new Date(f.Date);
+    const d = parseLocalDate(f.Date);
     return d >= fri && d <= thu;
   });
   const wkExtras = STATE.extras.filter(x => {
     if (!x.Date) return false;
-    const d = new Date(x.Date);
+    const d = parseLocalDate(x.Date);
     return d >= fri && d <= thu;
   });
 
