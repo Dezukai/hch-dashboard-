@@ -663,10 +663,12 @@
     </div>
   </div>
   <div class="view-switch" role="tablist">
-    <button class="vtab active" data-view="loads"   role="tab">Loads</button>
-    <button class="vtab"        data-view="payroll" role="tab">Payroll</button>
-    <button class="vtab"        data-view="fuel"    role="tab">Fuel</button>
-    <button class="vtab"        data-view="drivers" role="tab">P&amp;L</button>
+    <button class="vtab active" data-view="loads"     role="tab">Loads</button>
+    <button class="vtab"        data-view="invoiced"  role="tab">Invoiced</button>
+    <button class="vtab"        data-view="paid"      role="tab">Paid</button>
+    <button class="vtab"        data-view="payroll"   role="tab">Payroll</button>
+    <button class="vtab"        data-view="fuel"      role="tab">Fuel</button>
+    <button class="vtab"        data-view="drivers"   role="tab">P&amp;L</button>
   </div>
 </header>
 
@@ -706,6 +708,34 @@
   </div>
   <div class="lb-table-wrap">
     <table class="lb-table" id="lbTable"></table>
+  </div>
+</div>
+
+<!-- ================== INVOICED VIEW (status = Invoiced, sorted newest first) ================== -->
+<div id="invoicedView" style="display:none">
+  <div class="lb-header">
+    <div>
+      <div class="lb-co-name">INVOICED — AWAITING PAYMENT</div>
+      <div class="lb-meta" id="invoicedMeta">All loads marked Invoiced — most recent at top</div>
+    </div>
+  </div>
+  <section class="lb-stats" id="invoicedStats"></section>
+  <div class="lb-table-wrap">
+    <table class="lb-table" id="invoicedTable"></table>
+  </div>
+</div>
+
+<!-- ================== PAID VIEW (status = Paid, sorted newest first) ================== -->
+<div id="paidView" style="display:none">
+  <div class="lb-header">
+    <div>
+      <div class="lb-co-name">PAID</div>
+      <div class="lb-meta" id="paidMeta">All loads marked Paid — most recent at top</div>
+    </div>
+  </div>
+  <section class="lb-stats" id="paidStats"></section>
+  <div class="lb-table-wrap">
+    <table class="lb-table" id="paidTable"></table>
   </div>
 </div>
 
@@ -1335,8 +1365,10 @@ function statusClass(s){ return (s||"").toLowerCase().replace(/\s+/g,"-"); }
 
 function render(){
   $("#configBanner").style.display = STATE.apiUrl ? "none" : "";
-  const loadsView = $("#loadsView"), payrollView = $("#payrollView"), fuelView = $("#fuelView"), driversView = $("#driversView");
-  loadsView.style.display = payrollView.style.display = fuelView.style.display = driversView.style.display = "none";
+  const loadsView = $("#loadsView"), invoicedView = $("#invoicedView"), paidView = $("#paidView"),
+        payrollView = $("#payrollView"), fuelView = $("#fuelView"), driversView = $("#driversView");
+  loadsView.style.display = invoicedView.style.display = paidView.style.display
+    = payrollView.style.display = fuelView.style.display = driversView.style.display = "none";
   const fab = $("#btnAdd");
   fab.style.display = "";
   if (STATE.view === "payroll"){
@@ -1347,8 +1379,16 @@ function render(){
     renderFuel();
   } else if (STATE.view === "drivers"){
     driversView.style.display = "";
-    fab.style.display = "none";   // no add button in P&L view
+    fab.style.display = "none";
     renderDrivers();
+  } else if (STATE.view === "invoiced"){
+    invoicedView.style.display = "";
+    fab.style.display = "none";
+    renderStatusBoard("Invoiced");
+  } else if (STATE.view === "paid"){
+    paidView.style.display = "";
+    fab.style.display = "none";
+    renderStatusBoard("Paid");
   } else {
     loadsView.style.display = "";
     renderLoadboard();
@@ -1356,6 +1396,91 @@ function render(){
   if (STATE.view === "fuel") fab.setAttribute("aria-label","Add fuel receipt");
   else fab.setAttribute("aria-label","Add load");
   populateDriverDatalist();
+}
+
+/* ---------------- Invoiced + Paid status boards ---------------- */
+// Renders a flat list of all loads with the given status, newest first.
+function renderStatusBoard(status){
+  var prefix = status.toLowerCase();   // "invoiced" or "paid"
+  var loads = STATE.loads.filter(l => String(l.Status||"") === status);
+  // Sort: most recent at top — by UpdatedAt desc, fallback to PickupDate desc
+  loads.sort((a,b) => {
+    var au = a.UpdatedAt || a.CreatedAt || "";
+    var bu = b.UpdatedAt || b.CreatedAt || "";
+    if (au !== bu) return bu.localeCompare(au);
+    return (b.PickupDate||"").localeCompare(a.PickupDate||"");
+  });
+
+  // Top stats
+  var gross = loads.reduce((a,l) => a + (Number(l.Rate)||0), 0);
+  var fees  = loads.reduce((a,l) => a + brokerFee(l.Broker, Number(l.Rate)||0), 0);
+  var net   = gross - fees;
+  $("#"+prefix+"Stats").innerHTML = `
+    <div class="stat lb-stat-gross"><div class="label">${loads.length} LOAD${loads.length===1?"":"S"}</div><div class="value">${fmt$(gross)}</div></div>
+    <div class="stat lb-stat-fees"><div class="label">QUICK PAY FEES</div><div class="value">${fmt$(fees)}</div></div>
+    <div class="stat lb-stat-net"><div class="label">NET (after fees)</div><div class="value">${fmt$(net)}</div></div>
+  `;
+
+  // Table
+  var tbl = $("#"+prefix+"Table");
+  if (!loads.length){
+    tbl.innerHTML = `<tbody><tr><td style="text-align:center;color:var(--muted);padding:30px">
+      No ${status.toLowerCase()} loads yet. Tap a load's status dot on the Loads tab and pick <b>${status}</b>.
+    </td></tr></tbody>`;
+    return;
+  }
+
+  // Build header + rows (similar to renderLoadboard but flat, no day dividers)
+  var head = `<thead><tr>
+    <th class="col-status"></th>
+    <th class="col-date">Date</th>
+    <th class="col-driver">Driver</th>
+    <th class="col-trailer">Trailer</th>
+    <th class="col-carrier">Carrier</th>
+    <th class="col-pickup">Pickup</th>
+    <th class="col-delivery">Delivery</th>
+    <th class="col-rate">Rate</th>
+    <th class="col-fee">Fee</th>
+    <th class="col-net">Net</th>
+    <th class="col-load">Load #</th>
+  </tr></thead>`;
+  var body = "<tbody>" + loads.map(l => {
+    var rate = Number(l.Rate) || 0;
+    var fee  = brokerFee(l.Broker, rate);
+    var net  = rate - fee;
+    var dt   = parseLocalDate(l.PickupDate);
+    var md   = dt ? (dt.getMonth()+1).toString().padStart(2,"0")+"/"+dt.getDate().toString().padStart(2,"0") : "—";
+    var dotClass = status === "Paid" ? "paid" : (status === "Invoiced" ? "invoiced" : "active");
+    var loadStatusCls = "s-" + dotClass;
+    return `<tr class="load-row" data-id="${l.LoadID}">
+      <td class="col-status"><span class="row-dot ${dotClass}" data-status-pick="${l.LoadID}" title="Click to change status"></span></td>
+      <td class="col-date">${md}</td>
+      <td class="col-driver">${escapeHtml(l.Driver||"—")}</td>
+      <td class="col-trailer">${escapeHtml(l.TrailerNumber||"—")}</td>
+      <td class="col-carrier">${escapeHtml(l.Broker||"—")}</td>
+      <td class="col-pickup">${escapeHtml((l.OriginCity||"")+(l.OriginState?", "+l.OriginState:""))}</td>
+      <td class="col-delivery">${escapeHtml((l.DestCity||"")+(l.DestState?", "+l.DestState:""))}</td>
+      <td class="col-rate">${fmt$(rate)}</td>
+      <td class="col-fee"><span class="fee-pill">${feeLabel(l.Broker)||"—"}</span></td>
+      <td class="col-net">${fmt$(net)}</td>
+      <td class="col-load ${loadStatusCls}">${escapeHtml(String(l.LoadNumber||""))}</td>
+    </tr>`;
+  }).join("") + "</tbody>";
+  tbl.innerHTML = head + body;
+
+  // Wire row clicks → open detail modal
+  $$("#"+prefix+"Table .load-row").forEach(row => {
+    row.addEventListener("click", e => {
+      if (e.target.closest("[data-status-pick]")) return;
+      openDetail(row.dataset.id);
+    });
+  });
+  $$("#"+prefix+"Table [data-status-pick]").forEach(dot => {
+    dot.addEventListener("click", e => {
+      e.stopPropagation();
+      openStatusPopover(dot.dataset.statusPick, dot);
+    });
+  });
 }
 
 function populateDriverDatalist(){
@@ -1374,10 +1499,12 @@ function renderLoadboard(){
   $("#lbWeekText").textContent = fmtWeekLabel(fri);
   $("#lbWeekRange").textContent = (fri.getMonth()+1)+"/"+fri.getDate()+" – "+(thu.getMonth()+1)+"/"+thu.getDate();
 
-  // Filter: loads with PickupDate in this week
+  // Filter: loads with PickupDate in this week, EXCLUDING ones already moved to Invoiced/Paid tabs
   let weekLoads = STATE.loads.filter(l => {
     if (!l.PickupDate) return false;
-    const d = parseLocalDate(l.PickupDate); return d >= fri && d <= thu;
+    const d = parseLocalDate(l.PickupDate); if (!(d >= fri && d <= thu)) return false;
+    if (l.Status === "Invoiced" || l.Status === "Paid") return false;
+    return true;
   });
   if (STATE.lbShowOnlyNew) weekLoads = weekLoads.filter(isNewFromGmail);
 
