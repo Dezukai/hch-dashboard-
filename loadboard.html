@@ -523,6 +523,8 @@
   .lb-stat-pay .value, .lb-stat-pay .label { color: #fbbf24; }
   .lb-stat-net    { border-color: var(--accent); background: linear-gradient(135deg, rgba(34,197,94,.1), var(--panel)); }
   .lb-stat-net .value, .lb-stat-net .label { color: var(--accent); }
+  .lb-stat-ajx    { border-color: #a855f7; }
+  .lb-stat-ajx .value, .lb-stat-ajx .label { color: #a855f7; }
   @media (max-width: 768px) {
     .lb-stats { grid-template-columns: repeat(2, 1fr); }
   }
@@ -1394,13 +1396,21 @@ function renderLoadboard(){
         if (!x.Date) return false;
         const d = parseLocalDate(x.Date); return d >= fri && d <= thu;
       }).reduce((a,x) => a + (Number(x.Amount)||0), 0);
-  const netProfit = gross - fees - diesel - driverPay;
+  // AJX settlement = HCH owes AJX for Victor's loads (rate − quickpay − Victor's pay)
+  const victorLoads = weekLoads.filter(l => l.Driver === "Victor");
+  const ajxGross   = victorLoads.reduce((a,l) => a + (Number(l.Rate)||0), 0);
+  const ajxFees    = victorLoads.reduce((a,l) => a + brokerFee(l.Broker, Number(l.Rate)||0), 0);
+  const victorPay  = victorLoads.reduce((a,l) => a + (Number(l.DriverPay)||0), 0);
+  const ajxSettle  = Math.max(0, ajxGross - ajxFees - victorPay);
+
+  const netProfit = gross - fees - diesel - driverPay - ajxSettle;
 
   $("#lbStats").innerHTML = `
     <div class="stat lb-stat-gross"><div class="label">GROSS REVENUE</div><div class="value">${fmt$(gross)}</div></div>
     <div class="stat lb-stat-fees"><div class="label">QUICK PAY FEES</div><div class="value">${fmt$(fees)}</div></div>
     <div class="stat lb-stat-diesel"><div class="label">DIESEL</div><div class="value">${fmt$(diesel)}</div></div>
     <div class="stat lb-stat-pay"><div class="label">DRIVER PAY</div><div class="value">${fmt$(driverPay)}</div></div>
+    ${ajxSettle>0 ? `<div class="stat lb-stat-ajx"><div class="label">AJX SETTLEMENT</div><div class="value">${fmt$(ajxSettle)}</div></div>` : ""}
     <div class="stat lb-stat-net"><div class="label">NET PROFIT</div><div class="value">${fmt$(netProfit)}</div></div>
   `;
 
@@ -1652,6 +1662,12 @@ function renderPayroll(){
     `<button class="chip ${d === STATE.payDriver ? "active" : ""} ${d === "AJX" ? "chip-company" : ""}" data-driver="${escapeHtml(d)}">${escapeHtml(d)}</button>`
   ).join("");
 
+  // Wire up chip click handlers BEFORE any early return so AJX → other drivers works.
+  $$("#driverChips .chip").forEach(ch => ch.addEventListener("click", ()=>{
+    STATE.payDriver = ch.dataset.driver;
+    renderPayroll();
+  }));
+
   // If AJX is selected, render the carrier-settlement view and stop.
   if (STATE.payDriver === "AJX"){
     renderAjxSettlement();
@@ -1719,10 +1735,7 @@ function renderPayroll(){
     });
   });
   $$(".x-cell-btn").forEach(b => b.addEventListener("click", ()=> deleteExtra(b.dataset.id)));
-  $$("#driverChips .chip").forEach(ch => ch.addEventListener("click", ()=>{
-    STATE.payDriver = ch.dataset.driver;
-    renderPayroll();
-  }));
+  // (chip handlers wired earlier so AJX view also gets them)
 
   // Empty-state extras list (below main sheet) — show a prompt or list with remove buttons
   $("#extrasList").innerHTML = wkExtras.length
