@@ -1541,12 +1541,10 @@ function renderLoadboard(){
   $("#lbWeekText").textContent = fmtWeekLabel(fri);
   $("#lbWeekRange").textContent = (fri.getMonth()+1)+"/"+fri.getDate()+" – "+(thu.getMonth()+1)+"/"+thu.getDate();
 
-  // Filter: loads with PickupDate in this week, EXCLUDING ones already moved to Invoiced/Paid tabs
+  // Filter: loads with PickupDate in this week (all statuses — Invoiced/Paid still show here AND on their own tabs)
   let weekLoads = STATE.loads.filter(l => {
     if (!l.PickupDate) return false;
-    const d = parseLocalDate(l.PickupDate); if (!(d >= fri && d <= thu)) return false;
-    if (l.Status === "Invoiced" || l.Status === "Paid") return false;
-    return true;
+    const d = parseLocalDate(l.PickupDate); return d >= fri && d <= thu;
   });
   if (STATE.lbShowOnlyNew) weekLoads = weekLoads.filter(isNewFromGmail);
 
