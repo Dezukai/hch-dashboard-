@@ -273,21 +273,28 @@
   .pay-table .date-col { font-weight: 700; white-space: normal; }
   .pay-table .amount-col {
     text-align: right; font-weight: 700; color: var(--accent);
-    white-space: nowrap;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
   }
-  .pay-table col.c-date    { width: 14%; }
-  .pay-table col.c-carrier { width: 16%; }
-  .pay-table col.c-pickup  { width: 15%; }
-  .pay-table col.c-deliv   { width: 15%; }
-  .pay-table col.c-comment { width: 24%; }
-  .pay-table col.c-total   { width: 16%; }
+  .pay-table col.c-date    { width: 12%; }
+  .pay-table col.c-carrier { width: 14%; }
+  .pay-table col.c-pickup  { width: 16%; }
+  .pay-table col.c-deliv   { width: 16%; }
+  .pay-table col.c-comment { width: 22%; }
+  .pay-table col.c-total   { width: 20%; }
   .pay-table input.cell-input {
     width: 100%; padding: 6px 8px;
     background: rgba(0,0,0,0.15); border: 1px solid var(--border);
     color: var(--text); border-radius: 6px; font-size: 14px;
     font-family: inherit;
   }
-  .pay-table input.pay-cell { text-align: right; font-weight: 700; color: var(--accent); }
+  .pay-table input.pay-cell {
+    text-align: right; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+    min-width: 0;
+  }
+  .pay-table input.pay-cell::-webkit-outer-spin-button,
+  .pay-table input.pay-cell::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .pay-table tr.extra-tr td { background: rgba(34,197,94,.05); }
   .pay-table tr.extra-tr td:first-child { color: var(--muted); font-style: italic; }
   .pay-table tfoot .grand-label { text-align: right; font-weight: 800; background: var(--panel-2); }
@@ -304,12 +311,43 @@
   }
   .pay-actions .btn { max-width: 300px; }
   @media (max-width: 640px) {
-    .payroll-sheet { padding: 14px; margin: 10px; }
-    .pay-table { font-size: 12px; }
-    .pay-table th, .pay-table td { padding: 8px 5px; }
+    .payroll-sheet { padding: 12px 10px; margin: 8px; border-radius: 12px; }
+    .pay-table { font-size: 12px; table-layout: fixed; width: 100%; }
+    .pay-table th, .pay-table td { padding: 8px 4px; word-break: break-word; }
+    .pay-table .amount-col {
+      font-size: 13px; padding: 8px 4px;
+      white-space: nowrap; overflow: visible;
+    }
     .pay-table input.cell-input { font-size: 12px; padding: 4px 6px; }
+    .pay-table input.pay-cell { font-size: 13px; min-width: 0; }
+    /* On mobile re-balance columns so the dollar amount has room */
+    .pay-table col.c-date    { width: 14%; }
+    .pay-table col.c-carrier { width: 14%; }
+    .pay-table col.c-pickup  { width: 16%; }
+    .pay-table col.c-deliv   { width: 16%; }
+    .pay-table col.c-comment { width: 16%; }
+    .pay-table col.c-total   { width: 24%; }
+    .pay-table tfoot .grand-amt { font-size: 14px; padding: 10px 6px; }
     .driver-name { font-size: 16px; padding: 8px 12px; }
     .co-name { font-size: 16px; }
+    /* Tabs across the top scroll horizontally if too many */
+    .view-switch {
+      display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      padding: 4px 12px 8px; scrollbar-width: none;
+    }
+    .view-switch::-webkit-scrollbar { display: none; }
+    .vtab { flex: 0 0 auto; white-space: nowrap; padding: 8px 14px; font-size: 13px; }
+    /* Stat cards stack neatly */
+    .lb-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
+    .lb-stats .stat { padding: 12px 10px; }
+    .lb-stats .stat .label { font-size: 10px; }
+    .lb-stats .stat .value { font-size: 18px; font-variant-numeric: tabular-nums; }
+    /* Driver chips wrap nicely */
+    #driverChips { gap: 6px; padding: 8px 10px; flex-wrap: wrap; }
+    .chip { padding: 6px 12px; font-size: 13px; }
+    /* Extras inside the box are easier to read */
+    .extras-block .extra-row { padding: 10px; font-size: 13px; }
+    .extras-block .amt { font-size: 14px; font-variant-numeric: tabular-nums; }
   }
   @media print {
     @page { margin: 0.5in; }
@@ -550,8 +588,12 @@
   .lb-table-wrap {
     margin: 10px 16px 100px; background: var(--panel);
     border: 1px solid var(--border); border-radius: 14px; overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  .lb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .lb-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 13px; }
+  .lb-table .col-rate, .lb-table .col-fee, .lb-table .col-net, .lb-table .col-load {
+    text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
   .lb-table th {
     background: var(--panel-2); padding: 10px 8px; text-align: left;
     color: var(--muted); font-size: 11px; font-weight: 700;
