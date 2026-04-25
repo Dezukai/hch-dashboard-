@@ -173,7 +173,7 @@
     padding: 3px 8px; border-radius: 999px; letter-spacing: .3px;
     border: 1px solid transparent;
   }
-  .status.booked       { background: transparent; color: var(--muted); border-color: var(--hairline); }
+  .status.booked       { background: transparent; color: #5fa8f5; border-color: #5fa8f5; }
   .status.dispatched   { background: transparent; color: var(--text); border-color: var(--hairline); }
   .status.in-transit   { background: transparent; color: var(--accent); border-color: var(--accent); }
   .status.delivered    { background: transparent; color: var(--accent); border-color: var(--accent); }
@@ -318,9 +318,19 @@
 
   /* Week nav */
   .week-nav {
-    display: flex; align-items: center; gap: 8px;
-    padding: 14px 22px 4px; justify-content: center;
+    display: flex; align-items: center; gap: 12px;
+    padding: 18px 22px 6px; justify-content: center;
   }
+  .week-nav .icon-btn {
+    width: 44px; height: 44px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 18px;
+    background: transparent;
+    transition: background .12s, transform .08s;
+  }
+  .week-nav .icon-btn:hover { background: var(--accent); color: #0d1a02; }
+  .week-nav .icon-btn:active { transform: scale(.92); background: var(--accent-2); }
   .week-label {
     flex: 1; text-align: center; font-weight: 500; font-size: 17px;
     font-family: var(--serif); font-style: italic; color: var(--text);
@@ -475,6 +485,90 @@
     /* Extras inside the box are easier to read */
     .extras-block .extra-row { padding: 10px; font-size: 13px; }
     .extras-block .amt { font-size: 14px; font-variant-numeric: tabular-nums; }
+
+    /* === Editorial mobile polish === */
+    /* Masthead — keep wordmark + lockup on one line, shrink everything */
+    header.top { padding: 12px 14px 0; }
+    .brand { gap: 10px; }
+    .brand .wordmark { font-size: 28px; }
+    .brand .divider  { height: 18px; }
+    .brand .lockup   { font-size: 9.5px; letter-spacing: .22em; }
+    .icon-btn { width: 32px; height: 32px; font-size: 14px; }
+    .hdr-meta {
+      font-size: 9px; letter-spacing: .18em;
+      margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .hdr-meta .sep { margin: 0 6px; }
+    /* Tab bar — full-bleed scroll strip */
+    .view-switch { margin: 14px -14px 0; padding: 0; gap: 0; }
+    .vtab { padding: 12px 14px; font-size: 10.5px; letter-spacing: .14em; }
+
+    /* Loadboard hero — shrink the serif headline so it fits the screen */
+    .lb-header {
+      padding: 18px 14px 14px;
+      gap: 10px; align-items: flex-start;
+    }
+    .lb-co-name { font-size: 26px; line-height: 1.1; }
+    .lb-co-addr { font-size: 13px; margin-top: 6px; }
+    .lb-week-badge { font-size: 9.5px; letter-spacing: .2em; text-align: left; }
+    .lb-week-badge span { font-size: 16px; }
+
+    /* Week-nav — buttons wrap to next row if needed, NEW chip drops below */
+    .week-nav { padding: 12px 14px 4px; gap: 8px; flex-wrap: wrap; }
+    .week-nav .icon-btn { width: 38px; height: 38px; font-size: 15px; }
+    .week-label { font-size: 14px; flex: 1 1 auto; min-width: 140px; }
+    .new-chip { width: 100%; margin-left: 0 !important; text-align: center; padding: 10px; }
+
+    /* Stats — compact serif numbers, 2-col grid with hairlines */
+    .lb-stats { margin: 14px 14px 0; padding: 0; }
+    .lb-stats .stat { padding: 12px 12px; }
+    .lb-stats .stat .label { font-size: 9px; letter-spacing: .2em; }
+    .lb-stats .stat .value { font-size: 22px; font-variant-numeric: tabular-nums; margin-top: 4px; }
+
+    /* Legend — stack on mobile */
+    .lb-legend {
+      padding: 12px 14px; gap: 8px;
+      flex-direction: column; align-items: flex-start;
+    }
+    .fee-tag { font-size: 12px; margin-right: 4px; }
+    .lb-status-legend { gap: 12px; flex-wrap: wrap; }
+
+    /* Table — full-bleed scrollable, with subtle scroll affordance */
+    .lb-table-wrap { margin: 14px 0 100px; padding: 0 14px; }
+    .lb-table { font-size: 12.5px; min-width: 720px; }
+    .lb-table th { padding: 10px 8px; font-size: 9px; letter-spacing: .18em; }
+    .lb-table td { padding: 12px 8px; }
+    .lb-table tr.day-divider td { font-size: 14px; padding: 16px 8px 6px; }
+
+    /* Driver P&L cards — full-width hairline rows */
+    .driversList, #driversList { padding: 0 14px; }
+    .driver-card { padding: 18px 0; }
+    .driver-card .name { font-size: 22px; }
+    .pnl-row { font-size: 13px; }
+    .pnl-row.net .amt { font-size: 22px; }
+    .company-total { margin: 22px 14px 100px; }
+    .company-total .title { font-size: 20px; }
+    .company-total .pnl-row.net .amt { font-size: 26px; }
+
+    /* Fuel totals + banner */
+    .needs-driver-banner { margin: 12px 14px 0; }
+    .diesel-totals { margin: 0 14px 100px; padding: 14px 0; gap: 28px; }
+    .diesel-totals .value { font-size: 22px; }
+
+    /* Payroll sheet — smaller margins + headline */
+    .payroll-sheet { margin: 12px 14px 0; padding: 18px 16px; }
+    .pay-header { padding-bottom: 14px; margin-bottom: 16px; }
+    .driver-name { font-size: 18px; padding: 6px 12px; }
+
+    /* Modals get a touch more vertical room */
+    .modal { padding: 18px 18px calc(20px + env(safe-area-inset-bottom)); }
+    .modal h2 { font-size: 22px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .full { grid-column: 1; }
+
+    /* FAB out of the way of safe area */
+    .fab { width: 52px; height: 52px; font-size: 26px; line-height: 52px; }
   }
   @media print {
     @page { margin: 0.5in; }
@@ -777,7 +871,7 @@
     display: inline-block; width: 6px; height: 6px; border-radius: 50%;
     margin-right: 6px; vertical-align: middle;
   }
-  .dot.active   { background: var(--muted); }
+  .dot.active   { background: #5fa8f5; }
   .dot.invoiced { background: var(--danger); }
   .dot.paid     { background: var(--accent); }
 
@@ -827,12 +921,12 @@
     cursor: pointer; transition: width .12s ease;
   }
   .lb-table .col-status .row-dot:hover { width: 10px; }
-  .lb-table .col-status .row-dot.active    { background: var(--muted); }
+  .lb-table .col-status .row-dot.active    { background: #5fa8f5; }
   .lb-table .col-status .row-dot.invoiced  { background: var(--danger); }
   .lb-table .col-status .row-dot.paid      { background: var(--accent); }
   .lb-table .col-status .row-dot.detention { background: #f5d442; }
   /* Load # color follows status — editorial palette */
-  .lb-table .col-load.s-active    { color: var(--text); }
+  .lb-table .col-load.s-active    { color: #5fa8f5; }
   .lb-table .col-load.s-invoiced  { color: var(--danger); }
   .lb-table .col-load.s-paid      { color: var(--accent); }
   .lb-table .col-load.s-detention { color: #f5d442; }
@@ -1079,7 +1173,7 @@
 
 <!-- Status picker popover -->
 <div class="status-popover" id="statusPopover">
-  <button data-status="Booked"><span class="swatch" style="background:#9a8f7d"></span>Active</button>
+  <button data-status="Booked"><span class="swatch" style="background:#5fa8f5"></span>Active</button>
   <button data-status="Invoiced"><span class="swatch" style="background:#d6483a"></span>Invoiced</button>
   <button data-status="Paid"><span class="swatch" style="background:#a3e635"></span>Paid</button>
   <button data-status="Detention"><span class="swatch" style="background:#f5d442"></span>Detention / Layover</button>
@@ -1744,8 +1838,13 @@ function renderLoadboard(){
   if (!STATE.lbWeekStart) STATE.lbWeekStart = weekStartFri(new Date());
   const fri = STATE.lbWeekStart;
   const thu = weekEndThu(fri);
-  $("#lbWeekText").textContent = fmtWeekLabel(fri);
-  $("#lbWeekRange").textContent = (fri.getMonth()+1)+"/"+fri.getDate()+" – "+(thu.getMonth()+1)+"/"+thu.getDate();
+  // Note: #lbWeekText lives inside #lbHeadline whose innerHTML we rewrite
+  // below with the editorial subtext, so we guard it (it may be null after
+  // the first render).
+  const lbWeekTextEl = $("#lbWeekText");
+  if (lbWeekTextEl) lbWeekTextEl.textContent = fmtWeekLabel(fri);
+  const lbWeekRangeEl = $("#lbWeekRange");
+  if (lbWeekRangeEl) lbWeekRangeEl.textContent = (fri.getMonth()+1)+"/"+fri.getDate()+" – "+(thu.getMonth()+1)+"/"+thu.getDate();
   const wkLabel = $("#lbWeekLabel");
   if (wkLabel){
     const today = weekStartFri(new Date());
