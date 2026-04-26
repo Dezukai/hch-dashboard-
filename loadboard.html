@@ -688,7 +688,7 @@
     font-variant-numeric: tabular-nums;
   }
   .diesel-totals .value.gallons { color: var(--text); }
-  .diesel-totals .value.cost { color: var(--accent); }
+  .diesel-totals .value.cost { color: var(--danger); }
 
   /* Fuel card (legacy, kept for any fallback) */
   .fuel-card {
@@ -744,7 +744,7 @@
   .pnl-row.gross { color: var(--text); font-weight: 600; }
   .pnl-row.gross .amt { color: var(--text); }
   .pnl-row.cost { color: var(--muted); }
-  .pnl-row.cost .amt { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pnl-row.cost .amt { color: var(--danger); font-variant-numeric: tabular-nums; }
   .pnl-row.divider { border-top: 1px solid var(--hairline); margin-top: 8px; padding-top: 12px; }
   .pnl-row.net {
     font-size: 14px; font-weight: 700;
@@ -836,11 +836,16 @@
     font-variant-numeric: tabular-nums;
   }
   .lb-stat-gross  .value { color: var(--text); }
-  .lb-stat-fees   .value { color: var(--muted); }
-  .lb-stat-diesel .value { color: var(--muted); }
-  .lb-stat-pay    .value { color: var(--muted); }
+  .lb-stat-fees   .value { color: var(--danger); }
+  .lb-stat-diesel .value { color: var(--danger); }
+  .lb-stat-pay    .value { color: var(--danger); }
+  .lb-stat-ajx    .value { color: var(--danger); }
   .lb-stat-net    .value { color: var(--accent); }
-  .lb-stat-ajx    .value { color: var(--accent-2); }
+  /* Make deduction stat labels also pick up the red so the "money out" cluster reads as one block */
+  .lb-stat-fees   .label,
+  .lb-stat-diesel .label,
+  .lb-stat-pay    .label,
+  .lb-stat-ajx    .label { color: var(--danger); opacity: .75; }
   @media (max-width: 768px) {
     .lb-stats { grid-template-columns: repeat(2, 1fr); }
     .lb-stats .stat { border-right: none; border-bottom: 1px solid var(--hairline); }
@@ -862,7 +867,7 @@
     margin-right: 6px;
   }
   .fee-tag {
-    display: inline-block; margin: 0 8px 0 0; color: var(--accent);
+    display: inline-block; margin: 0 8px 0 0; color: var(--danger);
     font-weight: 600; font-family: var(--serif); font-style: italic;
     font-size: 13px; letter-spacing: 0;
   }
@@ -962,7 +967,7 @@
   }
   .fee-pill {
     display: inline-block; padding: 0;
-    background: transparent; color: var(--muted);
+    background: transparent; color: var(--danger);
     border: none;
     font-family: var(--serif); font-style: italic;
     font-size: 12px; font-weight: 500;
