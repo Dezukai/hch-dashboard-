@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0b1220" />
-<title>HCH Logistics — Load Board</title>
+<title>Hch Logistics</title>
 <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkhDSCBMb2dpc3RpY3MgTG9hZCBCb2FyZCIsCiAgInNob3J0X25hbWUiOiAiSENIIExvYWRzIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjEyMjAiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIxMjIwIgp9" />
 <style>
   :root {
@@ -355,6 +355,13 @@
     color: var(--muted); font-size: 11px; margin-top: 6px;
     letter-spacing: .2em; text-transform: uppercase; font-weight: 600;
   }
+  .pay-week {
+    margin-top: 10px;
+    font-family: var(--serif); font-style: italic;
+    font-size: 18px; font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0;
+  }
   .driver-name {
     font-family: var(--serif); font-style: italic;
     font-size: 22px; font-weight: 500; padding: 8px 16px;
@@ -570,13 +577,28 @@
     /* FAB out of the way of safe area */
     .fab { width: 52px; height: 52px; font-size: 26px; line-height: 52px; }
   }
+  /* Print-only footer — hidden on screen */
+  .print-footer { display: none; }
+
   @media print {
-    @page { margin: 0.5in; }
-    body { background: white !important; color: black !important; padding: 0 !important; }
+    /* margin:0 suppresses Chrome's auto-rendered date/title/URL/page-number — body padding restores visual margin */
+    @page { margin: 0; size: auto; }
+    html, body { background: white !important; color: black !important; }
+    body { padding: 0.5in 0.5in 0.8in 0.5in !important; margin: 0 !important; }
     .no-print, header.top, .fab, .banner, #configBanner, .toast, .modal-bg { display: none !important; }
     .payroll-sheet { background: white !important; color: black !important; border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none; }
-    .co-name, .co-addr, .driver-name { color: black !important; }
+    .co-name, .co-addr, .driver-name, .pay-week { color: black !important; }
     .driver-name { background: transparent !important; border: 1px solid #666 !important; }
+    /* Sole "Hch Logistics" wording — centered at the bottom of every printed page */
+    .print-footer {
+      display: block !important;
+      position: fixed; bottom: 0.4in; left: 0; right: 0;
+      text-align: center;
+      padding: 0;
+      font-size: 10pt;
+      color: #555 !important;
+      background: transparent;
+    }
     .pay-table th { background: #e5e5e5 !important; color: black !important; }
     .pay-table td { border: 1px solid #666 !important; color: black !important; background: white !important; }
     .pay-table tbody tr:nth-child(even) td { background: #f5f5f5 !important; }
@@ -585,6 +607,25 @@
     .pay-table input.cell-input { background: transparent !important; border: none !important; color: black !important; padding: 0 !important; }
     .pay-table tfoot .grand-label, .pay-table tfoot .grand-amt { background: #e5e5e5 !important; color: black !important; }
     .x-cell-btn { display: none !important; }
+    /* Print column balance — give Date room for "Wednesday", trim Comments */
+    .pay-table { table-layout: fixed; width: 100%; font-size: 11px; }
+    .pay-table col.c-date    { width: 14%; }
+    .pay-table col.c-carrier { width: 12%; }
+    .pay-table col.c-pickup  { width: 16%; }
+    .pay-table col.c-deliv   { width: 16%; }
+    .pay-table col.c-comment { width: 22%; }
+    .pay-table col.c-total   { width: 20%; }
+    /* Keep day name + city names on a single line — wrap only at word boundaries */
+    .pay-table .date-col       { white-space: nowrap !important; }
+    .pay-table th, .pay-table td {
+      word-break: keep-all !important;
+      overflow-wrap: normal !important;
+      hyphens: none !important;
+      padding: 8px 6px !important;
+      vertical-align: top;
+    }
+    /* Trailer / load number can break if truly necessary, never mid-word for prose */
+    .pay-table td.allow-break { overflow-wrap: anywhere !important; }
   }
 
   /* Section heads in payroll */
@@ -1101,6 +1142,7 @@
       <div>
         <div class="co-name">Hch Logistics, LLC</div>
         <div class="co-addr">7192 Allegheny Dr, Frederick, MD 21702</div>
+        <div class="pay-week" id="payWeekDisplay">—</div>
       </div>
       <div class="driver-name" id="driverNameDisplay">—</div>
     </div>
@@ -1116,7 +1158,7 @@
       <thead>
         <tr id="payHeadDriver">
           <th>Date</th>
-          <th>Carrier</th>
+          <th>Broker</th>
           <th>Pickup</th>
           <th>Delivery</th>
           <th>Comments</th>
@@ -1140,6 +1182,9 @@
       </div>
       <div class="list" id="extrasList" style="padding-top:0"></div>
     </div>
+
+    <!-- Print-only footer: small "Hch Logistics" centered at the bottom of every printed page -->
+    <div class="print-footer">Hch Logistics</div>
   </div>
 
   <div class="pay-actions no-print">
@@ -1928,7 +1973,7 @@ function renderLoadboard(){
   // Build table: header row + rows grouped by day, sub-grouped by trailer-or-not
   let tbody = `<thead><tr>
     <th class="col-status"></th>
-    <th>Date</th><th>Driver</th><th>Trailer</th><th>Carrier</th>
+    <th>Date</th><th>Driver</th><th>Trailer</th><th>Broker</th>
     <th>Pickup</th><th>Delivery</th>
     <th style="text-align:right">Rate</th>
     <th>Fee</th>
@@ -2157,6 +2202,20 @@ function fullDriverName(d){
 function renderPayroll(){
   if (!STATE.payWeekStart) STATE.payWeekStart = weekStartFri(new Date());
   $("#weekLabel").textContent = fmtWeekLabel(STATE.payWeekStart);
+  // Print-visible week range under the company address.
+  // (Uses unique var names to avoid colliding with `const [fri,thu] = weekRange(...)`
+  //  declared further down in the same function scope.)
+  {
+    const _wkFri = STATE.payWeekStart;
+    const _wkThu = weekEndThu(_wkFri);
+    const _months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const _sameMonth = _wkFri.getMonth() === _wkThu.getMonth();
+    const _wkStr = _sameMonth
+      ? `Week of ${_months[_wkFri.getMonth()]} ${_wkFri.getDate()}–${_wkThu.getDate()}, ${_wkThu.getFullYear()}`
+      : `Week of ${_months[_wkFri.getMonth()]} ${_wkFri.getDate()} – ${_months[_wkThu.getMonth()]} ${_wkThu.getDate()}, ${_wkThu.getFullYear()}`;
+    const _payWk = $("#payWeekDisplay");
+    if (_payWk) _payWk.textContent = _wkStr;
+  }
 
   // Driver chips — fixed list of 5 + AJX (carrier-company settlement for Victor's loads)
   if (!STATE.payDriver) STATE.payDriver = DRIVERS_LIST[0];
@@ -2183,7 +2242,7 @@ function renderPayroll(){
   // Restore the standard driver-payroll table header (in case we were previously on AJX)
   $("#payHeadDriver").innerHTML = `
     <th>Date</th>
-    <th>Carrier</th>
+    <th>Broker</th>
     <th>Pickup</th>
     <th>Delivery</th>
     <th>Comments</th>
@@ -2310,7 +2369,7 @@ function renderAjxSettlement(){
   // Swap table header to AJX-specific columns
   $("#payHeadDriver").innerHTML = `
     <th>Date</th>
-    <th>Carrier</th>
+    <th>Broker</th>
     <th>Lane</th>
     <th>Quickpay</th>
     <th>Driver pay</th>
