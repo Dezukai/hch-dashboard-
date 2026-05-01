@@ -1607,12 +1607,15 @@ function weekRange(d){
   return [fri, weekEndThu(fri)];
 }
 function inWeek(load, ref){
+  // Payroll convention: a load belongs to ONE week — the week of its PickupDate.
+  // Earlier this also matched on DeliveryDate, but that double-counted loads
+  // picked up Wed of one week and delivered Fri of the next (e.g. Hagerstown
+  // MD pickup 4/22 → Chiefland FL delivery 4/24 was showing on both weeks'
+  // payroll, causing Victor's Hagerstown→FL load to appear "already paid"
+  // last week AND again this week).
   const [fri, thu] = weekRange(ref);
   const pick = parseLocalDate(load.PickupDate);
-  const deli = parseLocalDate(load.DeliveryDate);
-  if (pick && pick >= fri && pick <= thu) return true;
-  if (deli && deli >= fri && deli <= thu) return true;
-  return false;
+  return !!(pick && pick >= fri && pick <= thu);
 }
 function fmtWeekLabel(fri){
   const thu = weekEndThu(fri);
