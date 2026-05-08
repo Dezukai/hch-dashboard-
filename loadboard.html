@@ -2252,9 +2252,39 @@ function renderPayroll(){
     <th>Total</th>`;
 
   // Filter loads for this driver + this week, sort by pickup date
-  const weekLoads = STATE.loads.filter(l =>
+  const weekLoadsRaw = STATE.loads.filter(l =>
     l.Driver === STATE.payDriver && inWeek(l, STATE.payWeekStart));
-  weekLoads.sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||""));
+  weekLoadsRaw.sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||""));
+
+  // Group loads by PayrollGroup (when set). Loads with the same non-empty
+  // PayrollGroup label render as ONE combined row showing both lanes and a
+  // single editable DriverPay (stored on the FIRST load in the group; sibling
+  // loads' DriverPay is forced to 0 so the grand total stays correct).
+  // Solo loads (no PayrollGroup) render normally.
+  const _groupBuckets = new Map(); // groupKey → array of loads
+  const _soloLoads = [];           // ungrouped, render in original order
+  const _groupedRows = [];         // [{ key, loads }] in render order (first load's date wins)
+  weekLoadsRaw.forEach(l => {
+    const g = String(l.PayrollGroup || "").trim();
+    if (!g){ _soloLoads.push(l); return; }
+    if (!_groupBuckets.has(g)){
+      _groupBuckets.set(g, []);
+      _groupedRows.push({ key: g, loads: _groupBuckets.get(g) });
+    }
+    _groupBuckets.get(g).push(l);
+  });
+  // Build a flat render list: each entry is either {kind:'solo', load} or {kind:'group', loads:[...]}.
+  const _renderList = [];
+  _soloLoads.forEach(l => _renderList.push({ kind:'solo', load: l }));
+  _groupedRows.forEach(g => _renderList.push({ kind:'group', loads: g.loads, key: g.key }));
+  // Sort by earliest pickup date within each entry
+  _renderList.sort((a,b) => {
+    const da = a.kind === 'solo' ? a.load.PickupDate : a.loads[0].PickupDate;
+    const db = b.kind === 'solo' ? b.load.PickupDate : b.loads[0].PickupDate;
+    return (da||"").localeCompare(db||"");
+  });
+  // For backwards compat, weekLoads is kept as the flat raw list (used by grand total below)
+  const weekLoads = weekLoadsRaw;
 
   // Extras for this driver + week
   const [fri, thu] = weekRange(STATE.payWeekStart);
@@ -2267,7 +2297,9 @@ function renderPayroll(){
 
   // Render tbody: loads + extras
   const tbody = $("#payTbody");
-  let rowsHtml = weekLoads.map(l => payRowHtml(l)).join("");
+  let rowsHtml = _renderList.map(item =>
+    item.kind === 'solo' ? payRowHtml(item.load) : payGroupRowHtml(item.loads, item.key)
+  ).join("");
   rowsHtml += wkExtras.map(x => extraRowHtml(x)).join("");
   if (!STATE.payDriver){
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">Pick a driver above.</td></tr>`;
@@ -2287,6 +2319,16 @@ function renderPayroll(){
       if (!load) return;
       load.DriverPay = e.currentTarget.value === "" ? "" : Number(e.currentTarget.value);
       await saveLoadSilently(load);
+      // If this is a grouped row's parent, zero out child loads' DriverPay so
+      // the grand total only counts the combined value once.
+      const childIds = (e.currentTarget.dataset.children || "").split(",").filter(Boolean);
+      for (const cid of childIds){
+        const child = STATE.loads.find(x => x.LoadID === cid);
+        if (child && Number(child.DriverPay || 0) !== 0){
+          child.DriverPay = 0;
+          await saveLoadSilently(child);
+        }
+      }
       renderPayroll();
     });
   });
@@ -2300,6 +2342,18 @@ function renderPayroll(){
       // loadboard-only context (parser hints, lane history, etc.).
       load.DriverComments = e.currentTarget.value;
       await saveLoadSilently(load);
+    });
+  });
+  // Group-label input — type the same letter/number on multiple loads to
+  // combine them into one payroll row.
+  $$(".pay-table input.group-cell").forEach(inp => {
+    inp.addEventListener("change", async e => {
+      const id = e.currentTarget.dataset.id;
+      const load = STATE.loads.find(x => x.LoadID === id);
+      if (!load) return;
+      load.PayrollGroup = String(e.currentTarget.value || "").trim().toUpperCase();
+      await saveLoadSilently(load);
+      renderPayroll();
     });
   });
   $$(".x-cell-btn").forEach(b => b.addEventListener("click", ()=> deleteExtra(b.dataset.id)));
@@ -2335,14 +2389,69 @@ function payRowHtml(l){
   // Carrier column shows broker name; for UPS trailer pulls (where TrailerNumber is set) show only the trailer number.
   const carrier = l.TrailerNumber ? String(l.TrailerNumber) : (l.Broker || "");
   const payVal = l.DriverPay != null && l.DriverPay !== "" ? l.DriverPay : "";
+  const groupVal = l.PayrollGroup || "";
+  // Comments cell holds two inputs: the wide text comment + a tiny "Group" input.
+  // Type the same group label (e.g. "1" or "A") on multiple loads to merge them
+  // into one combined row with one editable pay field.
   return `
     <tr>
       <td class="date-col"><b>${dow}</b><br>${mm}/${dd}</td>
       <td>${escapeHtml(carrier || "—")}</td>
       <td>${escapeHtml(origin || "—")}</td>
       <td>${escapeHtml(dest || "—")}</td>
-      <td><input type="text" class="cell-input note-cell" data-id="${l.LoadID}" value="${escapeHtml(l.DriverComments||"")}" placeholder="" /></td>
+      <td>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" class="cell-input note-cell" data-id="${l.LoadID}" value="${escapeHtml(l.DriverComments||"")}" placeholder="" style="flex:1;min-width:0" />
+          <input type="text" class="cell-input group-cell no-print" data-id="${l.LoadID}" value="${escapeHtml(groupVal)}" placeholder="grp" title="Type same label on multiple loads to combine them" style="width:38px;text-align:center;padding:6px 4px;font-size:11px;text-transform:uppercase" maxlength="6" />
+        </div>
+      </td>
       <td class="amount-col"><input type="number" step="0.01" inputmode="decimal" class="cell-input pay-cell" data-id="${l.LoadID}" value="${payVal}" placeholder="0.00" /></td>
+    </tr>
+  `;
+}
+
+// Combined payroll row for a group of loads sharing the same PayrollGroup label.
+// Lane shows BOTH legs with a "+" separator. Pay field is editable on the FIRST
+// load in the group; sibling loads' DriverPay is forced to 0 so the grand total
+// stays correct (single combined number from the parent + 0 from siblings).
+function payGroupRowHtml(loads, groupKey){
+  if (!loads || !loads.length) return "";
+  const sortedLoads = [...loads].sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||""));
+  const head = sortedLoads[0];
+  const d = parseLocalDate(head.PickupDate) || new Date(head.CreatedAt || Date.now());
+  const dow = d.toLocaleDateString(undefined,{weekday:"long"});
+  const mm = (d.getMonth()+1).toString().padStart(2,"0");
+  const dd = d.getDate().toString().padStart(2,"0");
+  const carrierBits = sortedLoads.map(l => l.TrailerNumber || l.Broker || "").filter(Boolean);
+  const carrier = [...new Set(carrierBits)].join(" + ");
+  const lane = sortedLoads.map(l => {
+    const o = [l.OriginCity, l.OriginState].filter(Boolean).join(" ") || "?";
+    const d2 = [l.DestCity, l.DestState].filter(Boolean).join(" ") || "?";
+    return o + " → " + d2;
+  });
+  const originStr = lane.map(s => s.split(" → ")[0]).join(" + ");
+  const destStr   = lane.map(s => s.split(" → ")[1]).join(" + ");
+  const commentsBits = sortedLoads.map(l => l.DriverComments || "").filter(Boolean);
+  const comments = commentsBits.join(" / ");
+  const payVal = head.DriverPay != null && head.DriverPay !== "" ? head.DriverPay : "";
+  const childIds = sortedLoads.slice(1).map(l => l.LoadID).join(",");
+  const datesAll = sortedLoads.map(l => {
+    const dx = parseLocalDate(l.PickupDate);
+    return dx ? `${dx.toLocaleDateString(undefined,{weekday:"short"})} ${(dx.getMonth()+1)}/${dx.getDate()}` : "?";
+  }).join(" + ");
+  return `
+    <tr class="group-row" data-group="${escapeHtml(groupKey)}">
+      <td class="date-col" title="${escapeHtml(datesAll)}"><b>${dow}</b><br>${mm}/${dd}<br><span style="font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.1em">+${sortedLoads.length-1} MORE</span></td>
+      <td>${escapeHtml(carrier || "—")}</td>
+      <td>${escapeHtml(originStr || "—")}</td>
+      <td>${escapeHtml(destStr || "—")}</td>
+      <td>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" class="cell-input note-cell" data-id="${head.LoadID}" value="${escapeHtml(comments)}" placeholder="" style="flex:1;min-width:0" />
+          <input type="text" class="cell-input group-cell no-print" data-id="${head.LoadID}" data-children="${escapeHtml(childIds)}" value="${escapeHtml(groupKey)}" title="Combined route — clear this label on any load to ungroup it" style="width:38px;text-align:center;padding:6px 4px;font-size:11px;text-transform:uppercase;background:rgba(163,230,53,.15)" maxlength="6" />
+        </div>
+      </td>
+      <td class="amount-col"><input type="number" step="0.01" inputmode="decimal" class="cell-input pay-cell" data-id="${head.LoadID}" data-children="${escapeHtml(childIds)}" value="${payVal}" placeholder="0.00" title="Combined pay for ${sortedLoads.length} loads in group ${escapeHtml(groupKey)}" /></td>
     </tr>
   `;
 }
