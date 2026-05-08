@@ -2435,13 +2435,20 @@ function payGroupRowHtml(loads, groupKey){
   const comments = commentsBits.join(" / ");
   const payVal = head.DriverPay != null && head.DriverPay !== "" ? head.DriverPay : "";
   const childIds = sortedLoads.slice(1).map(l => l.LoadID).join(",");
-  const datesAll = sortedLoads.map(l => {
+  // Build a stacked date display showing EVERY date in the group so the
+  // printed PDF reads "Mon 04/22 + Wed 04/24" instead of hiding dates behind
+  // a "+1 MORE" tag.
+  const dateLines = sortedLoads.map(l => {
     const dx = parseLocalDate(l.PickupDate);
-    return dx ? `${dx.toLocaleDateString(undefined,{weekday:"short"})} ${(dx.getMonth()+1)}/${dx.getDate()}` : "?";
-  }).join(" + ");
+    if (!dx) return "?";
+    const day = dx.toLocaleDateString(undefined,{weekday:"long"});
+    const m = (dx.getMonth()+1).toString().padStart(2,"0");
+    const dd2 = dx.getDate().toString().padStart(2,"0");
+    return `<div style="margin:2px 0"><b>${day}</b><br>${m}/${dd2}</div>`;
+  }).join('<div style="font-size:10px;color:var(--muted);margin:2px 0">+</div>');
   return `
     <tr class="group-row" data-group="${escapeHtml(groupKey)}">
-      <td class="date-col" title="${escapeHtml(datesAll)}"><b>${dow}</b><br>${mm}/${dd}<br><span style="font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.1em">+${sortedLoads.length-1} MORE</span></td>
+      <td class="date-col">${dateLines}</td>
       <td>${escapeHtml(carrier || "—")}</td>
       <td>${escapeHtml(originStr || "—")}</td>
       <td>${escapeHtml(destStr || "—")}</td>
