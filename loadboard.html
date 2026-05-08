@@ -669,6 +669,14 @@
     color: var(--accent-2);
   }
   .chip.chip-company.active { background: var(--accent-2); color: #0d1a02; border-color: var(--accent-2); }
+  /* Custom / part-time driver chip — dashed border so it reads as different from the 5 regulars */
+  .chip.chip-custom {
+    background: transparent;
+    border: 1px dashed var(--muted);
+    color: var(--text);
+    font-style: italic;
+  }
+  .chip.chip-custom.active { background: var(--text); color: var(--bg); border-style: solid; border-color: var(--text); font-style: normal; }
 
   /* Extras block — lives inside the printable payroll-sheet box */
   .extras-block {
@@ -1291,15 +1299,8 @@
         </div>
 
         <div>
-          <label>Driver</label>
-          <select name="Driver">
-            <option value="">— Unassigned —</option>
-            <option value="Jose Luis">Jose Luis</option>
-            <option value="Santiago">Santiago</option>
-            <option value="Victor">Victor</option>
-            <option value="Cesar">Cesar</option>
-            <option value="Henry">Henry</option>
-          </select>
+          <label>Driver <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">— pick from list or type a custom name</span></label>
+          <input type="text" name="Driver" list="driverList" placeholder="— Unassigned —" autocomplete="off" />
         </div>
         <div>
           <label>Truck #</label>
@@ -1367,15 +1368,8 @@
           <input name="Vendor" placeholder="Mudflap" list="vendorList" />
         </div>
         <div>
-          <label>Driver</label>
-          <select name="Driver">
-            <option value="">— Unassigned —</option>
-            <option value="Jose Luis">Jose Luis</option>
-            <option value="Santiago">Santiago</option>
-            <option value="Victor">Victor</option>
-            <option value="Cesar">Cesar</option>
-            <option value="Henry">Henry</option>
-          </select>
+          <label>Driver <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">— pick from list or type a custom name</span></label>
+          <input type="text" name="Driver" list="driverList" placeholder="— Unassigned —" autocomplete="off" />
         </div>
         <div>
           <label>Truck #</label>
@@ -1879,8 +1873,13 @@ function renderStatusBoard(status){
 }
 
 function populateDriverDatalist(){
-  const names = [...new Set(STATE.loads.map(l => l.Driver).filter(Boolean))].sort();
-  $("#driverList").innerHTML = names.map(n => `<option value="${n}"></option>`).join("");
+  // Always offer the 5 regulars first, then add any custom names that appear
+  // on existing loads (e.g. "Juan" — a part-time uncle who isn't in the
+  // standing list but did one trailer pull).
+  const used = new Set(STATE.loads.map(l => l.Driver).filter(Boolean));
+  const all  = [...DRIVERS_LIST];
+  used.forEach(n => { if (!all.includes(n)) all.push(n); });
+  $("#driverList").innerHTML = all.map(n => `<option value="${n}"></option>`).join("");
 }
 
 function renderStatsLoading(){
@@ -2222,10 +2221,22 @@ function renderPayroll(){
 
   // Driver chips — fixed list of 5 + AJX (carrier-company settlement for Victor's loads)
   if (!STATE.payDriver) STATE.payDriver = DRIVERS_LIST[0];
-  const allChips = [...DRIVERS_LIST, "AJX"];
-  $("#driverChips").innerHTML = allChips.map(d =>
-    `<button class="chip ${d === STATE.payDriver ? "active" : ""} ${d === "AJX" ? "chip-company" : ""}" data-driver="${escapeHtml(d)}">${escapeHtml(d)}</button>`
-  ).join("");
+  // Build chip list: the 5 regulars + AJX always show, then any CUSTOM driver
+  // names found on existing loads (e.g. "Juan" — a part-time driver who isn't
+  // in the standing list but did one or more loads). Custom drivers get a
+  // distinct visual treatment so they're easy to spot.
+  const customDrivers = [...new Set(STATE.loads.map(l => l.Driver).filter(Boolean))]
+    .filter(d => !DRIVERS_LIST.includes(d) && d !== "AJX")
+    .sort();
+  const allChips = [...DRIVERS_LIST, ...customDrivers, "AJX"];
+  $("#driverChips").innerHTML = allChips.map(d => {
+    const isAjx = d === "AJX";
+    const isCustom = customDrivers.includes(d);
+    const cls = "chip" + (d === STATE.payDriver ? " active" : "")
+              + (isAjx ? " chip-company" : "")
+              + (isCustom ? " chip-custom" : "");
+    return `<button class="${cls}" data-driver="${escapeHtml(d)}" title="${isCustom ? "Custom / part-time driver" : ""}">${escapeHtml(d)}</button>`;
+  }).join("");
 
   // Wire up chip click handlers BEFORE any early return so AJX → other drivers works.
   $$("#driverChips .chip").forEach(ch => ch.addEventListener("click", ()=>{
