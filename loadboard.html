@@ -1048,6 +1048,8 @@
       <span class="lockup">Logistics&nbsp;LLC</span>
     </div>
     <div class="hdr-actions">
+      <button class="icon-btn" id="btnTranslate" title="Translate Spanish → English / Traducir Español → Inglés" aria-label="Translate">🌐</button>
+      <button class="icon-btn" id="btnLang" title="Switch language / Cambiar idioma" aria-label="Language">EN</button>
       <button class="icon-btn" id="btnRefresh" title="Refresh" aria-label="Refresh">↻</button>
       <button class="icon-btn" id="btnSettings" title="Settings" aria-label="Settings">⚙</button>
     </div>
@@ -1056,12 +1058,12 @@
     Frederick, MD <span class="sep">·</span> DOT 2792875 <span class="sep">·</span> MC 937646
   </div>
   <div class="view-switch" role="tablist">
-    <button class="vtab active" data-view="loads"     role="tab">Load board</button>
-    <button class="vtab"        data-view="invoiced"  role="tab">Invoiced</button>
-    <button class="vtab"        data-view="paid"      role="tab">Paid</button>
-    <button class="vtab"        data-view="payroll"   role="tab">Payroll</button>
-    <button class="vtab"        data-view="fuel"      role="tab">Fuel</button>
-    <button class="vtab"        data-view="drivers"   role="tab">P&amp;L</button>
+    <button class="vtab active" data-view="loads"     role="tab" data-i18n>Load board</button>
+    <button class="vtab"        data-view="invoiced"  role="tab" data-i18n>Invoiced</button>
+    <button class="vtab"        data-view="paid"      role="tab" data-i18n>Paid</button>
+    <button class="vtab"        data-view="payroll"   role="tab" data-i18n>Payroll</button>
+    <button class="vtab"        data-view="fuel"      role="tab" data-i18n>Fuel</button>
+    <button class="vtab"        data-view="drivers"   role="tab" data-i18n>P&amp;L</button>
   </div>
 </header>
 
@@ -1482,6 +1484,35 @@
   </div>
 </div>
 
+<!-- Translator Modal: Spanish in (voice-to-text via phone keyboard mic), natural English out -->
+<div class="modal-bg" id="modalTranslate">
+  <div class="modal" style="max-width:640px">
+    <button class="close" id="closeTranslate" aria-label="Close">×</button>
+    <h2>Traducir / Translate</h2>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 14px">
+      Habla o escribe en español. La versión en inglés aparece abajo, lista para copiar y pegar al correo.
+      <br><span style="font-size:11px;color:var(--accent)">Tip: en el teléfono, toca el ícono del micrófono en tu teclado para hablar en español.</span>
+    </p>
+
+    <label>Tu mensaje (Español)</label>
+    <textarea id="trInputEs" rows="5" placeholder="Ejemplo: dile a Marco que sí podemos hacer la carga de Allentown a Dulles por mil cuatrocientos, Jose Luis va a recoger mañana a las nueve" style="width:100%;font-size:15px;line-height:1.5"></textarea>
+
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+      <button type="button" class="btn btn-primary" id="btnDoTranslate" style="flex:0 0 auto">Traducir →</button>
+      <button type="button" class="btn btn-secondary" id="btnTrClear" style="flex:0 0 auto">Borrar</button>
+      <span id="trStatus" style="color:var(--muted);font-size:12px;margin-left:auto"></span>
+    </div>
+
+    <label style="margin-top:18px">English (copia esto al correo)</label>
+    <textarea id="trOutputEn" rows="5" placeholder="The English version will appear here…" style="width:100%;font-size:15px;line-height:1.5;background:rgba(163,230,53,.06);border-color:var(--accent)"></textarea>
+
+    <div class="btn-row">
+      <button type="button" class="btn btn-secondary" id="btnTrClose">Cerrar / Close</button>
+      <button type="button" class="btn btn-primary" id="btnTrCopy">Copiar inglés</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1494,6 +1525,7 @@
 const LS_KEY_API   = "hch.apiUrl";
 const LS_KEY_TOKEN = "hch.apiToken";
 const LS_KEY_CACHE = "hch.cache.v1";
+const LS_KEY_LANG  = "hch.lang";  // "en" | "es" — UI language preference
 
 // Default API URL — baked in at setup. Can be overridden in Settings.
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyGK5qc0wPK2ndjgvQW6hKFMXG3wsdtbux9iFRgRCYCw_pnSvx87CU3sBCS82xYfzxl/exec";
@@ -1517,7 +1549,345 @@ let STATE = {
   fuelWeekStart: null,
   // Drivers/P&L view state
   drvWeekStart: null,
+  // UI language: "en" or "es". Toggled by the EN/ES button in the header.
+  lang: localStorage.getItem(LS_KEY_LANG) || "en",
 };
+
+/* ===================================================================
+   BILINGUAL: Spanish translation dictionary
+   The owner (Henry's father) primarily speaks Spanish. Switching the
+   EN/ES button in the header re-labels every visible string on the
+   dashboard so he can run dispatch in Spanish while the dispatcher
+   (Henry) keeps English. Both look at the same underlying data.
+   =================================================================== */
+const I18N_ES = {
+  // Header / metadata
+  "LOGISTICS LLC": "LOGÍSTICA LLC",
+  "Logistics LLC": "Logística LLC",
+  "Logistics LLC": "Logística LLC",
+  // Tabs
+  "Load board": "Cargas",
+  "Invoiced": "Facturado",
+  "Paid": "Pagado",
+  "Payroll": "Nómina",
+  "Fuel": "Combustible",
+  "P&L": "Ganancia",
+  "P& L": "Ganancia",
+  // Hero headlines
+  "The week in motion.": "La semana en movimiento.",
+  "Awaiting payment.": "Esperando pago.",
+  "Money in the bank.": "Dinero en el banco.",
+  "Payroll week": "Semana de pago",
+  "Status": "Estado",
+  // Status labels
+  "Active": "Activo",
+  "Booked": "Reservado",
+  "Dispatched": "Despachado",
+  "In Transit": "En tránsito",
+  "Delivered": "Entregado",
+  "Detention": "Detención",
+  "Cancelled": "Cancelado",
+  "Detention / Layover": "Detención / Espera",
+  // Stats
+  "Gross revenue": "Ingresos brutos",
+  "Quick pay fees": "Cargos pago rápido",
+  "Diesel": "Diesel",
+  "Driver pay": "Pago al chofer",
+  "AJX settlement": "Liquidación AJX",
+  "Net profit": "Ganancia neta",
+  "GROSS REVENUE": "INGRESOS BRUTOS",
+  "QUICK PAY FEES": "CARGOS PAGO RÁPIDO",
+  "DIESEL": "DIESEL",
+  "DRIVER PAY": "PAGO AL CHOFER",
+  "AJX SETTLEMENT": "LIQUIDACIÓN AJX",
+  "NET PROFIT": "GANANCIA NETA",
+  // Loadboard / table headers
+  "Date": "Fecha",
+  "Driver": "Chofer",
+  "Trailer": "Tráiler",
+  "Broker": "Corredor",
+  "Carrier": "Corredor",
+  "Pickup": "Recogida",
+  "Delivery": "Entrega",
+  "Rate": "Tarifa",
+  "Fee": "Cargo",
+  "Net": "Neto",
+  "Load #": "Carga #",
+  "Comments": "Comentarios",
+  "Total": "Total",
+  "Lane": "Ruta",
+  "Quickpay": "Pago rápido",
+  "AJX net": "Neto AJX",
+  "Location": "Ubicación",
+  "Vendor": "Vendedor",
+  "Gallons": "Galones",
+  "Price/Gal": "Precio/Gal",
+  "Amount": "Monto",
+  "Truck": "Camión",
+  // Buttons / actions
+  "Refresh": "Actualizar",
+  "Settings": "Configuración",
+  "Save": "Guardar",
+  "Cancel": "Cancelar",
+  "Delete": "Eliminar",
+  "Close": "Cerrar",
+  "Edit": "Editar",
+  "Add": "Agregar",
+  "+ Add": "+ Agregar",
+  "Test": "Probar",
+  "Print / Save PDF": "Imprimir / Guardar PDF",
+  "This week": "Esta semana",
+  "Last week": "Semana pasada",
+  "Next week": "Próxima semana",
+  "Add Load": "Agregar carga",
+  "Edit Load": "Editar carga",
+  "Add Fuel Receipt": "Agregar recibo de combustible",
+  "Add Compensation": "Agregar compensación",
+  "Load": "Carga",
+  // Modal labels
+  "Origin City": "Ciudad de origen",
+  "Origin State": "Estado de origen",
+  "Dest City": "Ciudad de destino",
+  "Dest State": "Estado de destino",
+  "Origin Zip": "Código postal origen",
+  "Dest Zip": "Código postal destino",
+  "Pickup Date": "Fecha de recogida",
+  "Delivery Date": "Fecha de entrega",
+  "Rate ($)": "Tarifa ($)",
+  "Truck #": "Camión #",
+  "Trailer #": "Tráiler #",
+  "Driver Pay ($)": "Pago al chofer ($)",
+  "Notes": "Notas",
+  "Note": "Nota",
+  "— Unassigned —": "— Sin asignar —",
+  "Settings": "Configuración",
+  "Google Apps Script Web App URL": "URL de la aplicación web de Google Apps Script",
+  "Access token (optional)": "Token de acceso (opcional)",
+  "Date (YYYY-MM-DD)": "Fecha (AAAA-MM-DD)",
+  // Common phrases
+  "All assigned": "Todos asignados",
+  "all assigned.": "todos asignados.",
+  "need a driver": "necesitan chofer",
+  "need a driver.": "necesitan chofer.",
+  "load booked": "carga reservada",
+  "loads booked": "cargas reservadas",
+  "total revenue": "ingresos totales",
+  "Pick a driver above.": "Elige un chofer arriba.",
+  "Pick a driver first": "Elige un chofer primero",
+  "All loads marked invoiced": "Todas las cargas marcadas facturadas",
+  "All loads marked paid": "Todas las cargas marcadas pagadas",
+  "Every load marked invoiced — most recent first.": "Cada carga marcada como facturada — la más reciente primero.",
+  "Every load marked paid — most recent first.": "Cada carga marcada como pagada — la más reciente primero.",
+  "Saved": "Guardado",
+  "Refreshing…": "Actualizando…",
+  "Save failed: ": "Falló al guardar: ",
+  "Settings saved": "Configuración guardada",
+  "Copied to clipboard": "Copiado al portapapeles",
+  // Fees legend
+  "Fees:": "Cargos:",
+  // NEW filter
+  "Show only NEW (need driver)": "Mostrar solo NUEVAS (sin chofer)",
+  "Show only NEW": "Mostrar solo NUEVAS",
+  "NEW need driver — show only": "NUEVAS sin chofer — mostrar solo",
+  "Showing": "Mostrando",
+  "NEW (clear)": "NUEVAS (borrar)",
+  "NEW · NEEDS DRIVER": "NUEVA · SIN CHOFER",
+  "NEW": "NUEVA",
+  // Section heads
+  "Extra compensation / deductions": "Compensación extra / deducciones",
+  "No extras this week. Tap": "Sin extras esta semana. Toca",
+  "to log layover, fuel reimbursement, etc.": "para registrar espera, reembolso de combustible, etc.",
+  "Jump to this week": "Saltar a esta semana",
+  "Previous week": "Semana anterior",
+  // Week-of label (printed on payroll PDF)
+  "Week of": "Semana de",
+  // Empty / loading states
+  "Loading…": "Cargando…",
+  "No loads this week. Tap": "No hay cargas esta semana. Toca",
+  "to add one or wait for the next email pull.": "para agregar una o espera el próximo correo.",
+  "No NEW loads this week.": "No hay cargas NUEVAS esta semana.",
+  "All loads marked Invoiced — most recent at top": "Todas las cargas marcadas Facturadas — la más reciente arriba",
+  "All loads marked Paid — most recent at top": "Todas las cargas marcadas Pagadas — la más reciente arriba",
+  // Loadboard hero subtitle dynamic parts
+  "total revenue": "ingresos totales",
+  "Demo mode — no backend connected. Paste your Google Apps Script URL in ⚙ Settings to save real data.": "Modo demo — sin conexión al servidor. Pega la URL de Google Apps Script en ⚙ Configuración para guardar datos reales.",
+  // Day names for table dividers
+  "Friday": "Viernes",
+  "Saturday": "Sábado",
+  "Sunday": "Domingo",
+  "Monday": "Lunes",
+  "Tuesday": "Martes",
+  "Wednesday": "Miércoles",
+  "Thursday": "Jueves",
+  // Short day names
+  "Fri": "Vie",
+  "Sat": "Sáb",
+  "Sun": "Dom",
+  "Mon": "Lun",
+  "Tue": "Mar",
+  "Wed": "Mié",
+  "Thu": "Jue",
+  // Subsections
+  "RATE CON LOADS": "CARGAS CON RATE-CON",
+  "TRAILER PULLS": "JALES DE TRÁILER",
+  "Rate con loads": "Cargas con rate-con",
+  "Trailer pulls": "Jales de tráiler",
+  // Misc UI labels
+  "Total gallons": "Galones totales",
+  "Total cost": "Costo total",
+  "TOTAL GALLONS": "GALONES TOTALES",
+  "TOTAL COST": "COSTO TOTAL",
+  "Avg $/gal": "Promedio $/gal",
+  "AVG $/GAL": "PROMEDIO $/GAL",
+  "Whole company": "Empresa completa",
+  "Driver P&L": "Ganancia por chofer",
+  "Margin": "Margen",
+  "Gross": "Bruto",
+  "Costs": "Costos",
+  "Net": "Neto",
+  "Pick / Save PDF": "Imprimir / Guardar PDF",
+  "Comments": "Comentarios",
+  // Settings demo banner
+  "Demo mode": "Modo demo",
+  "no backend connected": "sin conexión al servidor",
+  // Dispatch hint near translator
+  "Habla o escribe en español": "Habla o escribe en español",
+  // Combined-row label
+  "+1 MORE": "+1 MÁS",
+  "MORE": "MÁS",
+  // Trailer pulls
+  "UPS": "UPS",
+  "Demo mode — no backend connected.": "Modo demo — sin conexión al servidor.",
+  // Misc
+  "Search": "Buscar"
+};
+function tr(s){
+  if (STATE.lang !== "es") return s;
+  return (s in I18N_ES) ? I18N_ES[s] : s;
+}
+// Translate every element marked with [data-i18n] to the current language.
+// For elements that just need their textContent flipped, this is the simplest
+// path. Buttons and labels in static HTML use this attribute. Dynamic JS-rendered
+// content uses tr() inline.
+function applyLang(){
+  const lang = STATE.lang || "en";
+  document.documentElement.lang = lang;
+  // Phase 1: explicit data-i18n elements (their original text was tagged)
+  $$("[data-i18n]").forEach(el => {
+    const key = el.dataset.i18nOrig || el.textContent.trim();
+    if (!el.dataset.i18nOrig) el.dataset.i18nOrig = key;
+    el.textContent = tr(key);
+  });
+  $$("[data-i18n-attr]").forEach(el => {
+    // data-i18n-attr="placeholder:Original placeholder text|title:Original title"
+    el.dataset.i18nAttr.split("|").forEach(pair => {
+      const [attr, val] = pair.split(":");
+      const origKey = `__orig_${attr}`;
+      if (!el.dataset[origKey]) el.dataset[origKey] = val;
+      el.setAttribute(attr, tr(el.dataset[origKey]));
+    });
+  });
+  // Phase 2: DOM-walk fallback. Find every text node whose trimmed text exactly
+  // matches a dictionary key, and replace it with the Spanish version. This
+  // catches strings I haven't manually tagged (modals, JS-rendered content,
+  // dynamic labels). Stash the original text on a parent dataset so we can
+  // flip back to English later.
+  if (lang === "es") {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => {
+        if (!n.parentNode) return NodeFilter.FILTER_REJECT;
+        const tag = n.parentNode.tagName;
+        if (tag === "SCRIPT" || tag === "STYLE" || tag === "TEXTAREA" || tag === "INPUT") return NodeFilter.FILTER_REJECT;
+        const t = (n.nodeValue || "").trim();
+        return (t in I18N_ES) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    let n;
+    while ((n = walker.nextNode())){
+      const orig = n.nodeValue;
+      const trimmed = orig.trim();
+      if (!n.parentNode.dataset.__i18nOrig) n.parentNode.dataset.__i18nOrig = trimmed;
+      // Preserve leading/trailing whitespace
+      n.nodeValue = orig.replace(trimmed, I18N_ES[trimmed]);
+    }
+    // Also flip placeholders + titles on inputs/buttons (they're attributes, not text nodes)
+    $$("input[placeholder], textarea[placeholder]").forEach(el => {
+      const cur = el.getAttribute("placeholder") || "";
+      const trimmed = cur.trim();
+      if (trimmed in I18N_ES) {
+        if (!el.dataset.__i18nPh) el.dataset.__i18nPh = trimmed;
+        el.setAttribute("placeholder", I18N_ES[trimmed]);
+      }
+    });
+    $$("button[title], [aria-label], [title]").forEach(el => {
+      ["title", "aria-label"].forEach(attr => {
+        const cur = el.getAttribute(attr);
+        if (!cur) return;
+        const trimmed = cur.trim();
+        if (trimmed in I18N_ES) {
+          const k = `__i18n_${attr}`;
+          if (!el.dataset[k]) el.dataset[k] = trimmed;
+          el.setAttribute(attr, I18N_ES[trimmed]);
+        }
+      });
+    });
+  } else {
+    // Switching back to English — restore originals from saved dataset
+    $$("[data-__i18n-orig]").forEach(el => {
+      const orig = el.dataset.__i18nOrig;
+      if (!orig) return;
+      // Find the text node that currently holds the (Spanish) translation and restore
+      el.childNodes.forEach(c => {
+        if (c.nodeType === 3 && c.nodeValue.trim()) {
+          c.nodeValue = c.nodeValue.replace(c.nodeValue.trim(), orig);
+        }
+      });
+      delete el.dataset.__i18nOrig;
+    });
+    $$("input[data-__i18n-ph], textarea[data-__i18n-ph]").forEach(el => {
+      el.setAttribute("placeholder", el.dataset.__i18nPh);
+      delete el.dataset.__i18nPh;
+    });
+    $$("[data-__i18n-title]").forEach(el => { el.setAttribute("title", el.dataset.__i18nTitle); delete el.dataset.__i18nTitle; });
+    $$("[data-__i18n-aria-label]").forEach(el => { el.setAttribute("aria-label", el.dataset.__i18nAriaLabel); delete el.dataset.__i18nAriaLabel; });
+  }
+  // Update language toggle button label to show what tapping it would switch TO
+  const btn = $("#btnLang");
+  if (btn) btn.textContent = lang === "en" ? "ES" : "EN";
+  // Re-render any active dynamic view so JS-rendered strings pick up the new language.
+  // Then re-walk the DOM to translate the freshly-rendered content.
+  if (typeof render === "function") {
+    try { render(); } catch(e){}
+    if (lang === "es") setTimeout(()=> applyLangDomWalkOnly(), 50);
+  }
+}
+
+// Helper: run only the DOM-walk part of applyLang (used after re-renders to
+// translate freshly-injected content without re-tagging static elements).
+function applyLangDomWalkOnly(){
+  if (STATE.lang !== "es") return;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => {
+      if (!n.parentNode) return NodeFilter.FILTER_REJECT;
+      const tag = n.parentNode.tagName;
+      if (tag === "SCRIPT" || tag === "STYLE" || tag === "TEXTAREA" || tag === "INPUT") return NodeFilter.FILTER_REJECT;
+      const t = (n.nodeValue || "").trim();
+      return (t in I18N_ES) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }
+  });
+  let n;
+  while ((n = walker.nextNode())){
+    const orig = n.nodeValue;
+    const trimmed = orig.trim();
+    n.nodeValue = orig.replace(trimmed, I18N_ES[trimmed]);
+  }
+  // Buttons/placeholders too
+  $$("input[placeholder], textarea[placeholder]").forEach(el => {
+    const cur = el.getAttribute("placeholder") || "";
+    const trimmed = cur.trim();
+    if (trimmed in I18N_ES) el.setAttribute("placeholder", I18N_ES[trimmed]);
+  });
+}
 
 /* ---- Demo data (shown if no API URL is configured) ---- */
 const DEMO_LOADS = [
@@ -1785,6 +2155,12 @@ function render(){
   if (STATE.view === "fuel") fab.setAttribute("aria-label","Add fuel receipt");
   else fab.setAttribute("aria-label","Add load");
   populateDriverDatalist();
+  // After every render, walk the DOM and translate any text nodes whose text
+  // matches a Spanish dictionary entry. This catches all the dynamic content
+  // that JS just injected (column headers, stat labels, driver chip names,
+  // empty-state messages, etc.) without me needing to wrap every render call
+  // with tr().
+  if (typeof applyLangDomWalkOnly === "function") applyLangDomWalkOnly();
 }
 
 /* ---------------- Invoiced + Paid status boards ---------------- */
@@ -2831,6 +3207,71 @@ function bind(){
   $("#btnSettings").addEventListener("click", openSettings);
   $("#btnRefresh").addEventListener("click", ()=> { fetchLoads(); showToast("Refreshing…"); });
 
+  // Language toggle (EN ↔ ES). Persists across sessions in localStorage.
+  $("#btnLang").addEventListener("click", ()=> {
+    STATE.lang = STATE.lang === "es" ? "en" : "es";
+    localStorage.setItem(LS_KEY_LANG, STATE.lang);
+    applyLang();
+    showToast(STATE.lang === "es" ? "Idioma: Español" : "Language: English");
+  });
+
+  // Translator modal: Spanish in (voice-to-text via phone keyboard mic), English out
+  const trModal = $("#modalTranslate");
+  const trIn   = $("#trInputEs");
+  const trOut  = $("#trOutputEn");
+  const trStatus = $("#trStatus");
+  $("#btnTranslate").addEventListener("click", ()=> {
+    trModal.classList.add("open");
+    setTimeout(()=> trIn.focus(), 100);
+  });
+  $("#closeTranslate").addEventListener("click", ()=> trModal.classList.remove("open"));
+  $("#btnTrClose").addEventListener("click", ()=> trModal.classList.remove("open"));
+  $("#btnTrClear").addEventListener("click", ()=> {
+    trIn.value = ""; trOut.value = ""; trStatus.textContent = "";
+    trIn.focus();
+  });
+  $("#btnDoTranslate").addEventListener("click", async ()=> {
+    const text = (trIn.value || "").trim();
+    if (!text){ trStatus.textContent = "Escribe algo en español primero."; return; }
+    trStatus.textContent = "Traduciendo…";
+    try {
+      const r = await fetch(STATE.apiUrl, {
+        method: "POST",
+        body: JSON.stringify({ action: "translate", text, from: "es", to: "en", token: STATE.apiToken || "" })
+      });
+      const data = await r.json();
+      if (!data.ok){ trStatus.textContent = "Error: " + (data.error || "translate failed"); return; }
+      // Light tone polish — strip stilted/AI-sounding intros, keep it short and casual
+      let out = String(data.translated || "").trim();
+      out = out.replace(/^(?:Dear|Greetings|Hello there|To whom it may concern)[,:\s]+/i, "Hey ");
+      out = out.replace(/(?:Sincerely|Best regards|Yours truly|Kind regards),?\s*$/i, "Thanks");
+      out = out.replace(/\b(I am writing to inform you that|Please be advised that|Kindly be informed that)\b/gi, "");
+      trOut.value = out;
+      trStatus.textContent = "✓ Listo. Toca \"Copiar inglés\" para usar.";
+    } catch(e){
+      trStatus.textContent = "Error: " + e.message;
+    }
+  });
+  $("#btnTrCopy").addEventListener("click", async ()=> {
+    if (!trOut.value){ trStatus.textContent = "Nada para copiar."; return; }
+    try {
+      await navigator.clipboard.writeText(trOut.value);
+      trStatus.textContent = "✓ Copiado al portapapeles.";
+      showToast("Copied to clipboard");
+    } catch(e){
+      // Fallback: select the text so user can Cmd-C / long-press copy
+      trOut.select();
+      trStatus.textContent = "Selecciona y copia manualmente (Cmd-C / mantén presionado).";
+    }
+  });
+  // Auto-translate on Enter (Cmd/Ctrl+Enter) for power users
+  trIn.addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter"){
+      e.preventDefault();
+      $("#btnDoTranslate").click();
+    }
+  });
+
   $("#closeEdit").addEventListener("click", closeEdit);
   $("#btnCancelEdit").addEventListener("click", closeEdit);
   $("#closeDetail").addEventListener("click", closeDetail);
@@ -2994,6 +3435,7 @@ function bind(){
 }
 
 bind();
+applyLang();   // Apply saved language preference (EN/ES) on page load
 fetchLoads();
 </script>
 </body>
