@@ -3,9 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0b1220" />
+<meta name="theme-color" content="#0e0d0c" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Hch" />
 <title>Hch Logistics</title>
-<link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkhDSCBMb2dpc3RpY3MgTG9hZCBCb2FyZCIsCiAgInNob3J0X25hbWUiOiAiSENIIExvYWRzIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjEyMjAiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIxMjIwIgp9" />
+<!-- App icon: lime "Hch" italic serif on warm-black rounded square — matches the dashboard's editorial palette.
+     Embedded as SVG data URIs (no separate image files needed since this is a single-file app on GitHub Pages). -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMGUwZDBjIi8+PHRleHQgeD0iMjU2IiB5PSIzNDUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJJb3dhbiBPbGQgU3R5bGUsIFBhbGF0aW5vIExpbm90eXBlLCBQYWxhdGlubywgR2VvcmdpYSwgVGltZXMgTmV3IFJvbWFuLCBzZXJpZiIgZm9udC1zdHlsZT0iaXRhbGljIiBmb250LXdlaWdodD0iNjAwIiBmb250LXNpemU9IjMyMCIgZmlsbD0iI2EzZTYzNSIgbGV0dGVyLXNwYWNpbmc9Ii0xMiI+SGNoPC90ZXh0Pjwvc3ZnPg==" />
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMGUwZDBjIi8+PHRleHQgeD0iMjU2IiB5PSIzNDUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJJb3dhbiBPbGQgU3R5bGUsIFBhbGF0aW5vIExpbm90eXBlLCBQYWxhdGlubywgR2VvcmdpYSwgVGltZXMgTmV3IFJvbWFuLCBzZXJpZiIgZm9udC1zdHlsZT0iaXRhbGljIiBmb250LXdlaWdodD0iNjAwIiBmb250LXNpemU9IjMyMCIgZmlsbD0iI2EzZTYzNSIgbGV0dGVyLXNwYWNpbmc9Ii0xMiI+SGNoPC90ZXh0Pjwvc3ZnPg==" />
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiSGNoIExvZ2lzdGljcyIsInNob3J0X25hbWUiOiJIY2giLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBlMGQwYyIsInRoZW1lX2NvbG9yIjoiIzBlMGQwYyIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSFpwWlhkQ2IzZzlJakFnTUNBMU1USWdOVEV5SWo0OGNtVmpkQ0IzYVdSMGFEMGlOVEV5SWlCb1pXbG5hSFE5SWpVeE1pSWdjbmc5SWprMklpQm1hV3hzUFNJak1HVXdaREJqSWk4K1BIUmxlSFFnZUQwaU1qVTJJaUI1UFNJek5EVWlJSFJsZUhRdFlXNWphRzl5UFNKdGFXUmtiR1VpSUdadmJuUXRabUZ0YVd4NVBTSkpiM2RoYmlCUGJHUWdVM1I1YkdVc0lGQmhiR0YwYVc1dklFeHBibTkwZVhCbExDQlFZV3hoZEdsdWJ5d2dSMlZ2Y21kcFlTd2dWR2x0WlhNZ1RtVjNJRkp2YldGdUxDQnpaWEpwWmlJZ1ptOXVkQzF6ZEhsc1pUMGlhWFJoYkdsaklpQm1iMjUwTFhkbGFXZG9kRDBpTmpBd0lpQm1iMjUwTFhOcGVtVTlJak15TUNJZ1ptbHNiRDBpSTJFelpUWXpOU0lnYkdWMGRHVnlMWE53WVdOcGJtYzlJaTB4TWlJK1NHTm9QQzkwWlhoMFBqd3ZjM1puUGc9PSIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIiwicHVycG9zZSI6ImFueSBtYXNrYWJsZSJ9XX0=" />
 <style>
   :root {
     /* Editorial ledger palette — warm-black paper with orange ink */
