@@ -496,11 +496,18 @@
     /* === Editorial mobile polish === */
     /* Masthead — keep wordmark + lockup on one line, shrink everything */
     header.top { padding: 12px 14px 0; }
-    .brand { gap: 10px; }
-    .brand .wordmark { font-size: 28px; }
-    .brand .divider  { height: 18px; }
-    .brand .lockup   { font-size: 9.5px; letter-spacing: .22em; }
-    .icon-btn { width: 32px; height: 32px; font-size: 14px; }
+    .brand-row { gap: 6px; flex-wrap: nowrap; min-width: 0; }
+    .brand { gap: 8px; min-width: 0; flex-shrink: 1; overflow: hidden; }
+    .brand .wordmark { font-size: 24px; flex-shrink: 0; }
+    .brand .divider  { height: 16px; flex-shrink: 0; }
+    .brand .lockup   { font-size: 8.5px; letter-spacing: .18em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Icon buttons: never shrink, always visible — translate (🌐) and lang toggle (EN/ES) live here */
+    .hdr-actions { flex-shrink: 0; gap: 4px; }
+    .icon-btn { width: 30px; height: 30px; font-size: 13px; flex-shrink: 0; padding: 0; }
+    /* On very narrow phones (< 360px), drop the lockup entirely so all 4 buttons still fit */
+    @media (max-width: 359px) {
+      .brand .lockup, .brand .divider { display: none; }
+    }
     .hdr-meta {
       font-size: 9px; letter-spacing: .18em;
       margin-top: 2px;
@@ -1036,6 +1043,11 @@
     animation: spin .8s linear infinite; display: inline-block; vertical-align: middle;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  /* Mic button pulse while recording — visual cue that the mic is hot */
+  @keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+    50%      { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); }
+  }
 </style>
 </head>
 <body>
@@ -1495,9 +1507,15 @@
     </p>
 
     <label>Tu mensaje (Español)</label>
-    <textarea id="trInputEs" rows="5" placeholder="Ejemplo: dile a Marco que sí podemos hacer la carga de Allentown a Dulles por mil cuatrocientos, Jose Luis va a recoger mañana a las nueve" style="width:100%;font-size:15px;line-height:1.5"></textarea>
+    <div style="position:relative">
+      <textarea id="trInputEs" rows="5" placeholder="Toca el micrófono 🎤 abajo y habla, o escribe aquí en español" style="width:100%;font-size:15px;line-height:1.5;padding-right:8px"></textarea>
+    </div>
 
     <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+      <button type="button" class="btn btn-primary" id="btnTrMic" style="flex:0 0 auto;background:var(--danger);color:#fff;display:flex;align-items:center;gap:6px" title="Habla en español — toca para empezar / parar">
+        <span id="trMicIcon">🎤</span>
+        <span id="trMicLabel">Hablar</span>
+      </button>
       <button type="button" class="btn btn-primary" id="btnDoTranslate" style="flex:0 0 auto">Traducir →</button>
       <button type="button" class="btn btn-secondary" id="btnTrClear" style="flex:0 0 auto">Borrar</button>
       <span id="trStatus" style="color:var(--muted);font-size:12px;margin-left:auto"></span>
@@ -3271,6 +3289,114 @@ function bind(){
       $("#btnDoTranslate").click();
     }
   });
+
+  // ===== Microphone (Web Speech API) =====
+  // Tap mic → record Spanish → live transcribe into the input box → polish
+  // grammar (capitalize first letter, add period, fix common dictation
+  // quirks) → optionally auto-translate. Requires HTTPS (works on
+  // GitHub Pages, fails on file://).
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = $("#btnTrMic");
+  const micIcon = $("#trMicIcon");
+  const micLabel = $("#trMicLabel");
+  let recognition = null;
+  let isListening = false;
+  let recBaseText = "";  // text already in the box when recording started
+
+  function polishSpanish(s){
+    if (!s) return s;
+    let t = String(s).trim();
+    // Common dictation quirks: "punto" → ".", "coma" → ",", "signo de pregunta" → "?", "nueva linea" → "\n"
+    t = t.replace(/\s*\bpunto y aparte\b\s*/gi, ".\n");
+    t = t.replace(/\s*\bpunto y coma\b\s*/gi, "; ");
+    t = t.replace(/\s*\bpunto\b\s*/gi, ". ");
+    t = t.replace(/\s*\bcoma\b\s*/gi, ", ");
+    t = t.replace(/\s*\bsigno de interrogación\b\s*/gi, "? ");
+    t = t.replace(/\s*\bsigno de pregunta\b\s*/gi, "? ");
+    t = t.replace(/\s*\bnueva línea\b\s*/gi, "\n");
+    t = t.replace(/\s*\bnueva linea\b\s*/gi, "\n");
+    t = t.replace(/\s+/g, " ").replace(/\s+\n/g, "\n").replace(/\n\s+/g, "\n");
+    // Capitalize first letter
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+    // Capitalize after period + space
+    t = t.replace(/(\.\s+)([a-zñáéíóúü])/g, (m, p, c) => p + c.toUpperCase());
+    // Add final period if missing terminal punctuation
+    if (!/[.!?…]\s*$/.test(t)) t += ".";
+    return t.trim();
+  }
+
+  function setMicUi(listening){
+    isListening = listening;
+    if (listening){
+      micIcon.textContent = "⏺";
+      micLabel.textContent = "Parar";
+      micBtn.style.background = "#ff3b30";
+      micBtn.style.animation = "micPulse 1s ease-in-out infinite";
+      trStatus.textContent = "🎤 Escuchando… habla en español.";
+    } else {
+      micIcon.textContent = "🎤";
+      micLabel.textContent = "Hablar";
+      micBtn.style.background = "var(--danger)";
+      micBtn.style.animation = "";
+    }
+  }
+
+  if (!SR){
+    // Browser doesn't support Web Speech — hide the mic button gracefully
+    micBtn.style.display = "none";
+  } else {
+    micBtn.addEventListener("click", () => {
+      if (isListening){
+        try { recognition && recognition.stop(); } catch(e){}
+        return;
+      }
+      // Start a new recognition session
+      recognition = new SR();
+      recognition.lang = "es-ES";  // Spanish (Spain) — Google's es-MX would also work
+      recognition.continuous = true;     // Keep listening until user taps Parar
+      recognition.interimResults = true; // Show partial transcripts as user speaks
+      recBaseText = trIn.value;
+      recognition.onstart = () => setMicUi(true);
+      recognition.onerror = (e) => {
+        setMicUi(false);
+        let msg = e.error || "error";
+        if (msg === "not-allowed") msg = "Permiso de micrófono denegado. Habilítalo en la configuración del navegador.";
+        else if (msg === "no-speech") msg = "No escuché nada. Intenta de nuevo.";
+        else if (msg === "audio-capture") msg = "No encontré micrófono.";
+        else msg = "Error: " + msg;
+        trStatus.textContent = msg;
+      };
+      recognition.onend = () => {
+        setMicUi(false);
+        // Polish the final transcript
+        const polished = polishSpanish(trIn.value);
+        if (polished !== trIn.value) trIn.value = polished;
+        if (trIn.value.trim() && trIn.value.trim() !== recBaseText.trim()){
+          trStatus.textContent = "✓ Listo. Toca \"Traducir →\" o vuelve a hablar.";
+          // Auto-translate after a brief pause so the user can see the polished Spanish first
+          setTimeout(() => $("#btnDoTranslate").click(), 600);
+        }
+      };
+      recognition.onresult = (event) => {
+        // Build the running transcript: keep base text, append all final + interim results
+        let finalText = "";
+        let interimText = "";
+        for (let i = event.resultIndex; i < event.results.length; i++){
+          const res = event.results[i];
+          if (res.isFinal) finalText += res[0].transcript + " ";
+          else interimText += res[0].transcript;
+        }
+        const combined = (recBaseText ? recBaseText + " " : "") + finalText + interimText;
+        trIn.value = combined.trim();
+      };
+      try {
+        recognition.start();
+      } catch(e){
+        setMicUi(false);
+        trStatus.textContent = "No pude iniciar el micrófono: " + e.message;
+      }
+    });
+  }
 
   $("#closeEdit").addEventListener("click", closeEdit);
   $("#btnCancelEdit").addEventListener("click", closeEdit);
