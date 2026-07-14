@@ -1370,6 +1370,7 @@
       <option value="Landstar"></option>
     </datalist>
     <datalist id="driverList"></datalist>
+    <datalist id="fuelDriverList"></datalist>
   </div>
 </div>
 
@@ -1390,7 +1391,7 @@
         </div>
         <div>
           <label>Driver <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">— pick from list or type a custom name</span></label>
-          <input type="text" name="Driver" list="driverList" placeholder="— Unassigned —" autocomplete="off" />
+          <input type="text" name="Driver" list="fuelDriverList" placeholder="— Unassigned —" autocomplete="off" />
         </div>
         <div>
           <label>Truck #</label>
@@ -2042,9 +2043,61 @@ async function api(action, payload={}){
 }
 
 /* ---------------- Load flow ---------------- */
+// Strip junk that the email reader sometimes glues onto a city name:
+// leading appointment times ("AM"/"PM"/"8:00 AM") and dock/facility codes
+// ("URC-", "AO-", "SHN-"). So "AM Carlisle" -> "Carlisle",
+// "URC- Upper Marlboro" -> "Upper Marlboro". Leaves clean cities untouched.
+function cleanCity(s){
+  if (s == null || s === "") return s;
+  let c = String(s).trim();
+  c = c.replace(/^\s*\d{1,2}:\d{2}\s*(?:AM|PM)?\s+/i, ""); // "8:00 AM City"
+  c = c.replace(/^\s*(?:AM|PM)\s+/i, "");                  // "AM City" / "PM City"
+  c = c.replace(/^\s*[A-Z0-9]{2,5}-\s*/, "");              // "URC- City"
+  return c.trim();
+}
+function sanitizeLoads(loads){
+  (loads || []).forEach(l => {
+    if (l.OriginCity) l.OriginCity = cleanCity(l.OriginCity);
+    if (l.DestCity)   l.DestCity   = cleanCity(l.DestCity);
+  });
+  return loads;
+}
+
+// ONE-TIME auto-correction for this week's loads whose pickup/delivery the
+// email reader got wrong. Routes below are CH Robinson's own (Navisphere
+// export). Runs once, writes the fixes back through the API, then never again.
+const WEEK_FIX_ROUTES = {
+  "559492840": ["Pocomoke City","MD","Charles Town","WV"],
+  "559831151": ["Carlisle","PA","Chantilly","VA"],
+  "559833688": ["Carlisle","PA","Chantilly","VA"],
+  "559833721": ["Carlisle","PA","Chantilly","VA"],
+  "559833726": ["Carlisle","PA","Chantilly","VA"],
+  "559833727": ["Carlisle","PA","Chantilly","VA"],
+  "559833729": ["Carlisle","PA","Chantilly","VA"],
+  "559833743": ["Carlisle","PA","Chantilly","VA"],
+  "559833746": ["Carlisle","PA","Chantilly","VA"],
+  "559833759": ["Carlisle","PA","Chantilly","VA"],
+  "560402163": ["Upper Marlboro","MD","Willow Hill","PA"]
+};
+async function applyWeekFix(){
+  if (localStorage.getItem("hch.weekfix.v1")) return;
+  if (!STATE.apiUrl) return;
+  let n = 0;
+  for (const l of STATE.loads){
+    const f = WEEK_FIX_ROUTES[String(l.LoadNumber || "").trim()];
+    if (!f) continue;
+    if (l.OriginCity !== f[0] || l.OriginState !== f[1] || l.DestCity !== f[2] || l.DestState !== f[3]){
+      l.OriginCity = f[0]; l.OriginState = f[1]; l.DestCity = f[2]; l.DestState = f[3];
+      try { await saveLoadSilently(l); n++; } catch(e){}
+    }
+  }
+  localStorage.setItem("hch.weekfix.v1", "1");
+  if (n > 0){ showToast("Corrected " + n + " load location" + (n===1?"":"s")); render(); }
+}
+
 async function fetchLoads(){
   if (!STATE.apiUrl){
-    STATE.loads = loadCache() || DEMO_LOADS.slice();
+    STATE.loads = sanitizeLoads(loadCache() || DEMO_LOADS.slice());
     STATE.extras = [];
     STATE.fuel = [];
     render();
@@ -2057,13 +2110,14 @@ async function fetchLoads(){
       api("listExtras").catch(() => ({ extras: [] })),
       api("listFuel").catch(() => ({ fuel: [] }))
     ]);
-    STATE.loads = loadsResp.loads || [];
+    STATE.loads = sanitizeLoads(loadsResp.loads || []);
     STATE.extras = extrasResp.extras || [];
     STATE.fuel = fuelResp.fuel || [];
     saveCache(STATE.loads);
+    await applyWeekFix();
   } catch (e){
     showToast("Couldn't fetch: " + e.message, true);
-    STATE.loads = loadCache() || [];
+    STATE.loads = sanitizeLoads(loadCache() || []);
   } finally {
     STATE.loading = false; render();
   }
@@ -2281,6 +2335,12 @@ function populateDriverDatalist(){
   const all  = [...DRIVERS_LIST];
   used.forEach(n => { if (!all.includes(n)) all.push(n); });
   $("#driverList").innerHTML = all.map(n => `<option value="${n}"></option>`).join("");
+  // Fuel driver picker also offers "AJX" (the carrier company) so fuel can be
+  // tagged to AJX and auto-deducted from AJX take-home in Payroll.
+  const fuelNames = [...all];
+  if (!fuelNames.includes("AJX")) fuelNames.push("AJX");
+  const fdl = $("#fuelDriverList");
+  if (fdl) fdl.innerHTML = fuelNames.map(n => `<option value="${n}"></option>`).join("");
 }
 
 function renderStatsLoading(){
@@ -2731,16 +2791,6 @@ function renderPayroll(){
       if (!load) return;
       load.DriverPay = e.currentTarget.value === "" ? "" : Number(e.currentTarget.value);
       await saveLoadSilently(load);
-      // If this is a grouped row's parent, zero out child loads' DriverPay so
-      // the grand total only counts the combined value once.
-      const childIds = (e.currentTarget.dataset.children || "").split(",").filter(Boolean);
-      for (const cid of childIds){
-        const child = STATE.loads.find(x => x.LoadID === cid);
-        if (child && Number(child.DriverPay || 0) !== 0){
-          child.DriverPay = 0;
-          await saveLoadSilently(child);
-        }
-      }
       renderPayroll();
     });
   });
@@ -2757,14 +2807,39 @@ function renderPayroll(){
     });
   });
   // Group-label input — type the same letter/number on multiple loads to
-  // combine them into one payroll row.
+  // combine them into one payroll row. Clearing the label ungroups the WHOLE
+  // group (every member, not just the first load) and restores each load's
+  // original pay, so combining is fully reversible.
   $$(".pay-table input.group-cell").forEach(inp => {
     inp.addEventListener("change", async e => {
-      const id = e.currentTarget.dataset.id;
-      const load = STATE.loads.find(x => x.LoadID === id);
-      if (!load) return;
-      load.PayrollGroup = String(e.currentTarget.value || "").trim().toUpperCase();
-      await saveLoadSilently(load);
+      const headId = e.currentTarget.dataset.id;
+      const childIds = (e.currentTarget.dataset.children || "").split(",").filter(Boolean);
+      const memberIds = [headId, ...childIds];
+      const newVal = String(e.currentTarget.value || "").trim().toUpperCase();
+      if (newVal === ""){
+        // UNGROUP every member of this row and put back each load's pre-group pay.
+        for (const lid of memberIds){
+          const load = STATE.loads.find(x => x.LoadID === lid);
+          if (!load) continue;
+          load.PayrollGroup = "";
+          const stash = localStorage.getItem("hch.grouppay." + lid);
+          if (stash !== null){
+            load.DriverPay = (stash === "") ? "" : Number(stash);
+            localStorage.removeItem("hch.grouppay." + lid);
+          }
+          await saveLoadSilently(load);
+        }
+      } else {
+        // Apply the label to every member of this row, then consolidate the pay.
+        for (const lid of memberIds){
+          const load = STATE.loads.find(x => x.LoadID === lid);
+          if (load && String(load.PayrollGroup || "").trim().toUpperCase() !== newVal){
+            load.PayrollGroup = newVal;
+            await saveLoadSilently(load);
+          }
+        }
+        await consolidateGroup(newVal);
+      }
       renderPayroll();
     });
   });
@@ -2789,6 +2864,30 @@ function renderPayroll(){
   const loadPay = weekLoads.reduce((a,l) => a + (Number(l.DriverPay)||0), 0);
   const extrasPay = wkExtras.reduce((a,x) => a + (Number(x.Amount)||0), 0);
   $("#payGrandTotal").textContent = fmt$(loadPay + extrasPay);
+}
+
+// Combine the pay of every load sharing a payroll-group label onto the FIRST
+// (earliest) load and zero the others, so all totals count the group's pay once.
+// Each load's pre-group pay is stashed in localStorage the first time it's
+// grouped, so ungrouping (clearing the label) restores it exactly.
+async function consolidateGroup(label){
+  label = String(label || "").trim().toUpperCase();
+  if (!label) return;
+  const members = STATE.loads.filter(l => String(l.PayrollGroup || "").trim().toUpperCase() === label);
+  if (members.length < 2) return; // a group of one — nothing to combine
+  const sorted = [...members].sort((a,b) => (a.PickupDate||"").localeCompare(b.PickupDate||""));
+  const head = sorted[0];
+  members.forEach(l => {
+    if (localStorage.getItem("hch.grouppay." + l.LoadID) === null){
+      localStorage.setItem("hch.grouppay." + l.LoadID,
+        (l.DriverPay === "" || l.DriverPay == null) ? "" : String(l.DriverPay));
+    }
+  });
+  const sum = members.reduce((a,l) => a + (Number(l.DriverPay)||0), 0);
+  for (const l of sorted.slice(1)){
+    if (Number(l.DriverPay||0) !== 0){ l.DriverPay = 0; await saveLoadSilently(l); }
+  }
+  if ((Number(head.DriverPay)||0) !== sum){ head.DriverPay = sum; await saveLoadSilently(head); }
 }
 
 function payRowHtml(l){
@@ -2912,6 +3011,15 @@ function renderAjxSettlement(){
   }).sort((a,b) => (a.Date||"").localeCompare(b.Date||""));
   const totalExtras = ajxExtras.reduce((sum, x) => sum + (Number(x.Amount) || 0), 0);
 
+  // Fuel logged for AJX this week — auto-deducted from AJX take-home.
+  const ajxFuel = STATE.fuel.filter(f => {
+    if (f.Driver !== "AJX") return false;
+    if (!f.Date) return false;
+    const d = parseLocalDate(f.Date);
+    return d >= _ajxFri && d <= _ajxThu;
+  }).sort((a,b) => (a.Date||"").localeCompare(b.Date||""));
+  const totalFuel = ajxFuel.reduce((sum, f) => sum + (Number(f.TotalAmount) || 0), 0);
+
   $("#driverNameDisplay").textContent = "AJX Logistics";
 
   // Swap table header to AJX-specific columns
@@ -2965,8 +3073,8 @@ function renderAjxSettlement(){
   // Wire up the × delete buttons for any extras rows we just rendered in the AJX table
   $$(".pay-table .x-cell-btn").forEach(b => b.addEventListener("click", () => deleteExtra(b.dataset.id)));
 
-  // Grand total = AJX take-home from Victor's loads + manual extras (signed)
-  const totalAjx = totalGross - totalQp - totalDriver + totalExtras;
+  // Grand total = AJX take-home from Victor's loads − fuel + manual extras (signed)
+  const totalAjx = totalGross - totalQp - totalDriver - totalFuel + totalExtras;
   $("#payGrandTotal").textContent = fmt$(totalAjx);
 
   // Summary panel in the extras section — keep the calculation breakdown visible,
@@ -2983,7 +3091,11 @@ function renderAjxSettlement(){
     <div class="extra-row" style="grid-template-columns:1fr auto">
       <div><b>Driver pay</b><div style="color:var(--muted);font-size:12px">Paid to Victor</div></div>
       <div class="amt" style="color:var(--danger)">−${fmt$(totalDriver)}</div>
-    </div>`;
+    </div>${totalFuel > 0 ? `
+    <div class="extra-row" style="grid-template-columns:1fr auto">
+      <div><b>Fuel</b><div style="color:var(--muted);font-size:12px">${ajxFuel.length} AJX receipt${ajxFuel.length===1?"":"s"} this week</div></div>
+      <div class="amt" style="color:var(--danger)">−${fmt$(totalFuel)}</div>
+    </div>` : ""}`;
   // Render each manual AJX extra as its own row in the summary panel with a × button
   if (ajxExtras.length){
     summaryHtml += ajxExtras.map(x => `
