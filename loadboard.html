@@ -2031,15 +2031,58 @@ function loadCache(){ try { return JSON.parse(localStorage.getItem(LS_KEY_CACHE)
 async function api(action, payload={}){
   if (!STATE.apiUrl) throw new Error("No API URL set");
   const body = { action, token: STATE.apiToken || "", ...payload };
-  // text/plain avoids CORS preflight
-  const res = await fetch(STATE.apiUrl, {
+  // text/plain avoids CORS preflight.
+  // Google Apps Script "cold starts" after a few idle minutes, so the first
+  // request can be very slow or hang. We give each attempt a timeout and, on a
+  // timeout/network error (not a real HTTP/app error), retry once — that's
+  // usually enough to catch the woken-up backend on the second try.
+  const attempt = async (timeoutMs) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(STATE.apiUrl, {
+        method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+        body: JSON.stringify(body), signal: ctrl.signal,
+      });
+      if (!res.ok){ const err = new Error("HTTP " + res.status); err.httpStatus = res.status; throw err; }
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Unknown error");
+      return data;
+    } finally { clearTimeout(timer); }
+  };
+  // What counts as a "try again, it's just Google being flaky" error:
+  //  - a timeout (backend was asleep) or network blip (fetch TypeError), and
+  //  - certain HTTP codes that Apps Script throws transiently on its internal
+  //    redirect — a 404 here almost never means "gone" (our reads work), it
+  //    means "that redirect hiccuped"; 429/5xx are overload/temporary too.
+  const TRANSIENT_HTTP = new Set([404, 429, 500, 502, 503, 504]);
+  const isTransient = (e) =>
+    !!e && (e.name === "AbortError" || e.name === "TypeError" || TRANSIENT_HTTP.has(e.httpStatus));
+
+  let lastErr;
+  for (let i = 0; i < 4; i++){          // up to 4 attempts total
+    try {
+      return await attempt(30000);
+    } catch (e) {
+      lastErr = e;
+      if (!isTransient(e)) throw e;      // a real app error: surface it, no retries
+      await new Promise(r => setTimeout(r, 700 * (i + 1)));  // brief backoff, then retry
+    }
+  }
+  throw lastErr;                          // exhausted retries: surface the last error
+}
+
+// Keep Google's backend awake so it doesn't "cold start" between refreshes.
+// While the board is the visible tab, send a tiny "ping" every 4 minutes. This
+// touches no data and never re-renders — it just stops the server from dozing
+// off, so your real refreshes stay fast. Pauses when the tab is hidden.
+function keepWarm(){
+  if (!STATE.apiUrl) return;
+  if (typeof document !== "undefined" && document.hidden) return;
+  fetch(STATE.apiUrl, {
     method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || "Unknown error");
-  return data;
+    body: JSON.stringify({ action: "ping", token: STATE.apiToken || "" }),
+  }).catch(() => {});   // best-effort; ignore any result or error
 }
 
 /* ---------------- Load flow ---------------- */
@@ -2103,6 +2146,19 @@ async function fetchLoads(){
     render();
     return;
   }
+  // Don't stack up refreshes. Google processes our requests one at a time, so
+  // mashing refresh just queues more work behind the one already running (and
+  // makes it feel slower). If a fetch is in flight, ignore the extra click.
+  if (STATE.fetching) return;
+  STATE.fetching = true;
+
+  // Show the last-saved board IMMEDIATELY so the screen is never blank while
+  // the (possibly slow) backend wakes up. We refresh it in place below.
+  if (!STATE.loads || !STATE.loads.length){
+    const cached = loadCache();
+    if (cached && cached.length){ STATE.loads = sanitizeLoads(cached); render(); }
+  }
+
   STATE.loading = true; renderStatsLoading();
   try {
     const [loadsResp, extrasResp, fuelResp] = await Promise.all([
@@ -2110,16 +2166,23 @@ async function fetchLoads(){
       api("listExtras").catch(() => ({ extras: [] })),
       api("listFuel").catch(() => ({ fuel: [] }))
     ]);
-    STATE.loads = sanitizeLoads(loadsResp.loads || []);
+    // Only replace what we're showing when the backend actually returned data.
+    // A blank/failed "list" should never wipe a board that's already showing.
+    if (Array.isArray(loadsResp.loads) && loadsResp.loads.length){
+      STATE.loads = sanitizeLoads(loadsResp.loads);
+      saveCache(STATE.loads);
+    }
     STATE.extras = extrasResp.extras || [];
     STATE.fuel = fuelResp.fuel || [];
-    saveCache(STATE.loads);
     await applyWeekFix();
   } catch (e){
-    showToast("Couldn't fetch: " + e.message, true);
-    STATE.loads = sanitizeLoads(loadCache() || []);
+    // Keep whatever is already on screen (cache); just tell the user quietly.
+    showToast("Using saved copy — couldn't reach the server", true);
+    if (!STATE.loads || !STATE.loads.length){
+      STATE.loads = sanitizeLoads(loadCache() || []);
+    }
   } finally {
-    STATE.loading = false; render();
+    STATE.loading = false; STATE.fetching = false; render();
   }
 }
 
@@ -3394,12 +3457,14 @@ function renderDrivers(){
     return d >= fri && d <= thu;
   });
 
-  // Group by driver
+  // Group by driver. Victor + AJX are the AJX carrier's operation — nothing to
+  // do with HCH's P&L — so they're excluded here entirely (they live in the
+  // AJX payroll tab). No Victor card, and none of his gross/fuel/pay in totals.
   const drivers = [...new Set([
     ...wkLoads.map(l => l.Driver).filter(Boolean),
     ...wkFuel.map(f => f.Driver).filter(Boolean),
     ...wkExtras.map(x => x.Driver).filter(Boolean),
-  ])].sort();
+  ])].sort().filter(d => d !== "Victor" && d !== "AJX");
 
   const list = $("#driversList");
   if (!drivers.length){
@@ -3462,28 +3527,23 @@ function renderDrivers(){
     `;
   }).join("");
 
-  // Company total — fuel covers ALL receipts in the week (even ones with no driver assigned).
-  const companyFuelCost = wkFuel.reduce((a,f) => a + (Number(f.TotalAmount)||0), 0);
+  // Company total — HCH only. Exclude Victor's and AJX's fuel (that's AJX's cost,
+  // not HCH's). Unassigned fuel still counts as HCH's.
+  const hchFuel = wkFuel.filter(f => f.Driver !== "Victor" && f.Driver !== "AJX");
+  const companyFuelCost = hchFuel.reduce((a,f) => a + (Number(f.TotalAmount)||0), 0);
 
-  // AJX settlement = HCH owes AJX for Victor's loads (full rate − quickpay − Victor's pay).
-  // Subtract from HCH profit because HCH transfers that money to AJX.
-  const victorLoads = wkLoads.filter(l => l.Driver === "Victor");
-  const ajxGross   = victorLoads.reduce((a,l) => a + (Number(l.Rate)||0), 0);
-  const ajxFees    = victorLoads.reduce((a,l) => a + brokerFee(l.Broker, Number(l.Rate)||0), 0);
-  const victorPay  = sumDriverPay(victorLoads);
-  const ajxSettlement = Math.max(0, ajxGross - ajxFees - victorPay);
-
+  // No AJX settlement line here anymore — Victor/AJX is entirely AJX's business
+  // and isn't part of HCH's P&L at all (see the AJX tab for that settlement).
   const companyNetRev = totalGross - totalFees;
-  const companyNet = companyNetRev - companyFuelCost - totalPay - ajxSettlement;
+  const companyNet = companyNetRev - companyFuelCost - totalPay;
   const companyMargin = totalGross > 0 ? (companyNet/totalGross)*100 : 0;
   $("#companyTotal").innerHTML = `
     <div class="title">Whole company — ${fmtWeekLabel(STATE.drvWeekStart)}</div>
     <div class="pnl-row gross"><span class="label">Gross (broker rate)</span><span class="amt">${fmt$(totalGross)}</span></div>
     <div class="pnl-row cost"><span class="label">− Broker fees</span><span class="amt">−${fmt$(totalFees)}</span></div>
     <div class="pnl-row" style="font-weight:700;color:var(--text);border-top:1px dashed var(--border);padding-top:8px;margin-top:4px"><span class="label">Net revenue</span><span class="amt">${fmt$(companyNetRev)}</span></div>
-    <div class="pnl-row cost"><span class="label">− Fuel <span style="color:var(--muted);font-weight:400;font-size:11px">(${wkFuel.length} receipt${wkFuel.length===1?"":"s"})</span></span><span class="amt">−${fmt$(companyFuelCost)}</span></div>
+    <div class="pnl-row cost"><span class="label">− Fuel <span style="color:var(--muted);font-weight:400;font-size:11px">(${hchFuel.length} receipt${hchFuel.length===1?"":"s"})</span></span><span class="amt">−${fmt$(companyFuelCost)}</span></div>
     <div class="pnl-row cost"><span class="label">− Driver payouts</span><span class="amt">−${fmt$(totalPay)}</span></div>
-    ${ajxSettlement>0 ? `<div class="pnl-row cost"><span class="label">− AJX settlement <span style="color:var(--muted);font-weight:400;font-size:11px">(${victorLoads.length} Victor load${victorLoads.length===1?"":"s"})</span></span><span class="amt">−${fmt$(ajxSettlement)}</span></div>` : ""}
     <div class="pnl-row net divider ${companyNet<0?"negative":""}">
       <span class="label">HCH PROFIT ${totalGross>0?'<span class="margin-pill '+(companyMargin>40?"":companyMargin>15?"warn":"bad")+'">'+companyMargin.toFixed(1)+'% margin</span>':''}</span>
       <span class="amt">${fmt$(companyNet)}</span>
@@ -3852,6 +3912,14 @@ function bind(){
 bind();
 applyLang();   // Apply saved language preference (EN/ES) on page load
 fetchLoads();
+
+// Keep the backend warm: ping now, then every 4 minutes, and again the moment
+// you switch back to this tab — so it's already awake when you refresh.
+keepWarm();
+setInterval(keepWarm, 4 * 60 * 1000);
+if (typeof document !== "undefined"){
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) keepWarm(); });
+}
 </script>
 </body>
 </html>
