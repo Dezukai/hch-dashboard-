@@ -979,6 +979,8 @@
     letter-spacing: .15em; text-transform: uppercase;
   }
   .lb-table .col-driver { font-weight: 600; color: var(--text); }
+  .drv-pick { cursor: pointer; }
+  .drv-pick:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
   .lb-table .col-rate   { font-weight: 600; color: var(--text); }
   .lb-table .col-net    { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
   .lb-table .col-load   { color: var(--text); font-weight: 600; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; letter-spacing: .02em; }
@@ -1257,6 +1259,9 @@
   <button data-status="Paid"><span class="swatch" style="background:#a3e635"></span>Paid</button>
   <button data-status="Detention"><span class="swatch" style="background:#f5d442"></span>Detention / Layover</button>
 </div>
+
+<!-- One-tap driver picker (filled in by openDriverPopover) -->
+<div class="status-popover" id="driverPopover"></div>
 
 <!-- Add/Edit Modal -->
 <div class="modal-bg" id="modalEdit">
@@ -2083,6 +2088,7 @@ function keepWarm(){
     method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
     body: JSON.stringify({ action: "ping", token: STATE.apiToken || "" }),
   }).catch(() => {});   // best-effort; ignore any result or error
+  flushPending();       // also retry anything that hasn't synced yet
 }
 
 /* ---------------- Load flow ---------------- */
@@ -2186,79 +2192,115 @@ async function fetchLoads(){
   }
 }
 
-async function saveFuel(receipt){
-  if (!STATE.apiUrl){
-    if (!receipt.ReceiptID) receipt.ReceiptID = "f_" + Date.now().toString(36);
-    const i = STATE.fuel.findIndex(f => f.ReceiptID === receipt.ReceiptID);
-    if (i >= 0) STATE.fuel[i] = receipt; else STATE.fuel.push(receipt);
-    render(); showToast("Saved (demo mode)"); return;
+// ---- Adding / editing: show it INSTANTLY, save in the background ----
+// The old flow saved to Google and THEN re-downloaded the entire board before
+// showing anything — two slow trips with a blank screen in between. Now we put
+// your change on the board immediately, persist it in the background, and
+// quietly reconcile. If a save can't get through, it's queued and retried so
+// nothing you added ever silently disappears.
+
+// Silent sync: pull the latest from the server WITHOUT a spinner or a blank
+// screen. Used after an optimistic change to catch up on anything the backend
+// normalized — but you already saw your change appear instantly.
+async function refreshQuietly(){
+  if (!STATE.apiUrl || STATE.fetching) return;
+  STATE.fetching = true;
+  try {
+    const [loadsResp, extrasResp, fuelResp] = await Promise.all([
+      api("list"),
+      api("listExtras").catch(() => ({ extras: [] })),
+      api("listFuel").catch(() => ({ fuel: [] }))
+    ]);
+    if (Array.isArray(loadsResp.loads) && loadsResp.loads.length){
+      STATE.loads = sanitizeLoads(loadsResp.loads); saveCache(STATE.loads);
+    }
+    if (Array.isArray(extrasResp.extras)) STATE.extras = extrasResp.extras;
+    if (Array.isArray(fuelResp.fuel))     STATE.fuel   = fuelResp.fuel;
+    render();
+  } catch(e){ /* keep what's already on screen */ }
+  finally { STATE.fetching = false; }
+}
+
+// A save that didn't go through gets parked here and retried (on a short timer
+// and on every keep-warm tick) until it lands — so an offline/flaky moment
+// never loses what you typed.
+function queuePending(kind, payload){
+  (STATE.pending = STATE.pending || []).push({ kind, payload, tries: 0 });
+  setTimeout(flushPending, 4000);
+}
+async function flushPending(){
+  if (!STATE.apiUrl || !STATE.pending || !STATE.pending.length) return;
+  const still = [];
+  for (const p of STATE.pending){
+    try {
+      if (p.kind === "load")           await api("upsert",      { load: p.payload });
+      else if (p.kind === "fuel")      await api("upsertFuel",  { receipt: p.payload });
+      else if (p.kind === "extra")     await api("upsertExtra", { extra: p.payload });
+      else if (p.kind === "delLoad")   await api("delete",      { LoadID: p.payload });
+      else if (p.kind === "delFuel")   await api("deleteFuel",  { ReceiptID: p.payload });
+      else if (p.kind === "delExtra")  await api("deleteExtra", { ExtraID: p.payload });
+    } catch(e){ if (++p.tries < 30) still.push(p); }
   }
-  try { await api("upsertFuel", { receipt }); await fetchLoads(); showToast("Receipt saved"); }
-  catch(e){ showToast("Save failed: " + e.message, true); }
+  const cleared = STATE.pending.length - still.length;
+  STATE.pending = still;
+  if (cleared > 0){ showToast(cleared + " pending change" + (cleared===1?"":"s") + " synced"); refreshQuietly(); }
+}
+
+async function saveFuel(receipt){
+  if (!receipt.ReceiptID) receipt.ReceiptID = "f_" + Date.now().toString(36);
+  const i = STATE.fuel.findIndex(f => f.ReceiptID === receipt.ReceiptID);
+  if (i >= 0) STATE.fuel[i] = receipt; else STATE.fuel.push(receipt);
+  render();                                    // <-- appears instantly
+  if (!STATE.apiUrl){ showToast("Saved (demo mode)"); return; }
+  try { await api("upsertFuel", { receipt }); showToast("Receipt saved"); refreshQuietly(); }
+  catch(e){ queuePending("fuel", receipt); showToast("Saved here — syncing…", true); }
 }
 async function deleteFuelReceipt(receiptID){
   if (!confirm("Delete this fuel receipt?")) return;
-  if (!STATE.apiUrl){ STATE.fuel = STATE.fuel.filter(f => f.ReceiptID !== receiptID); render(); return; }
-  try { await api("deleteFuel", { ReceiptID: receiptID }); await fetchLoads(); }
-  catch(e){ showToast("Delete failed: " + e.message, true); }
+  STATE.fuel = STATE.fuel.filter(f => f.ReceiptID !== receiptID);
+  render();
+  if (!STATE.apiUrl) return;
+  try { await api("deleteFuel", { ReceiptID: receiptID }); refreshQuietly(); }
+  catch(e){ queuePending("delFuel", receiptID); showToast("Removed here — syncing…", true); }
 }
 
 async function saveExtra(extra){
-  if (!STATE.apiUrl){
-    if (!extra.ExtraID) extra.ExtraID = "x_" + Date.now().toString(36);
-    const i = STATE.extras.findIndex(x => x.ExtraID === extra.ExtraID);
-    if (i >= 0) STATE.extras[i] = extra; else STATE.extras.push(extra);
-    render(); showToast("Saved (demo mode)"); return;
-  }
-  try { await api("upsertExtra", { extra }); await fetchLoads(); showToast("Saved"); }
-  catch(e){ showToast("Save failed: " + e.message, true); }
+  if (!extra.ExtraID) extra.ExtraID = "x_" + Date.now().toString(36);
+  const i = STATE.extras.findIndex(x => x.ExtraID === extra.ExtraID);
+  if (i >= 0) STATE.extras[i] = extra; else STATE.extras.push(extra);
+  render();
+  if (!STATE.apiUrl){ showToast("Saved (demo mode)"); return; }
+  try { await api("upsertExtra", { extra }); showToast("Saved"); refreshQuietly(); }
+  catch(e){ queuePending("extra", extra); showToast("Saved here — syncing…", true); }
 }
 async function deleteExtra(extraID){
   if (!confirm("Remove this entry?")) return;
-  if (!STATE.apiUrl){
-    STATE.extras = STATE.extras.filter(x => x.ExtraID !== extraID);
-    render(); return;
-  }
-  try { await api("deleteExtra", { ExtraID: extraID }); await fetchLoads(); }
-  catch(e){ showToast("Delete failed: " + e.message, true); }
+  STATE.extras = STATE.extras.filter(x => x.ExtraID !== extraID);
+  render();
+  if (!STATE.apiUrl) return;
+  try { await api("deleteExtra", { ExtraID: extraID }); refreshQuietly(); }
+  catch(e){ queuePending("delExtra", extraID); showToast("Removed here — syncing…", true); }
 }
 
 async function saveLoad(record){
   if (!record.LoadID) record.LoadID = uid();
   record.UpdatedAt = new Date().toISOString();
   if (!record.CreatedAt) record.CreatedAt = record.UpdatedAt;
-
-  if (!STATE.apiUrl){
-    const i = STATE.loads.findIndex(l => l.LoadID === record.LoadID);
-    if (i >= 0) STATE.loads[i] = record; else STATE.loads.unshift(record);
-    saveCache(STATE.loads); render();
-    showToast("Saved (demo mode)");
-    return;
-  }
-  try {
-    await api("upsert", { load: record });
-    showToast("Saved");
-    await fetchLoads();
-  } catch(e){
-    showToast("Save failed: " + e.message, true);
-  }
+  const i = STATE.loads.findIndex(l => l.LoadID === record.LoadID);
+  if (i >= 0) STATE.loads[i] = record; else STATE.loads.unshift(record);
+  saveCache(STATE.loads); render();            // <-- appears instantly
+  if (!STATE.apiUrl){ showToast("Saved (demo mode)"); return; }
+  try { await api("upsert", { load: record }); showToast("Saved"); refreshQuietly(); }
+  catch(e){ queuePending("load", record); showToast("Saved here — syncing…", true); }
 }
 
 async function deleteLoad(loadID){
   if (!confirm("Delete this load? This can't be undone.")) return;
-  if (!STATE.apiUrl){
-    STATE.loads = STATE.loads.filter(l => l.LoadID !== loadID);
-    saveCache(STATE.loads); render();
-    showToast("Deleted (demo mode)");
-    return;
-  }
-  try {
-    await api("delete", { LoadID: loadID });
-    showToast("Deleted");
-    await fetchLoads();
-  } catch(e){
-    showToast("Delete failed: " + e.message, true);
-  }
+  STATE.loads = STATE.loads.filter(l => l.LoadID !== loadID);
+  saveCache(STATE.loads); render();
+  if (!STATE.apiUrl){ showToast("Deleted (demo mode)"); return; }
+  try { await api("delete", { LoadID: loadID }); showToast("Deleted"); refreshQuietly(); }
+  catch(e){ queuePending("delLoad", loadID); showToast("Removed here — syncing…", true); }
 }
 
 /* ---------------- Rendering ---------------- */
@@ -2542,7 +2584,7 @@ function renderLoadboard(){
         <tr class="load-row${isNew?" is-new":""}" data-id="${l.LoadID}">
           <td class="col-status"><span class="row-dot ${dotClass}" data-status-pick="${l.LoadID}" title="Click to change status"></span></td>
           <td>${md}</td>
-          <td class="col-driver">${escapeHtml(l.Driver || "—")}${isNew?'<span class="new-row-tag">NEW</span>':''}</td>
+          <td class="col-driver drv-pick" data-driver-pick="${l.LoadID}" title="Tap to set driver">${escapeHtml(l.Driver || "— tap")}${isNew?'<span class="new-row-tag">NEW</span>':''}</td>
           <td>${l.TrailerNumber ? `<span class="trailer-pill">${escapeHtml(l.TrailerNumber)}</span>` : "—"}</td>
           <td>${escapeHtml(l.Broker || "—")}</td>
           <td>${escapeHtml([l.OriginCity, l.OriginState].filter(Boolean).join(", ") || "—")}</td>
@@ -2557,13 +2599,18 @@ function renderLoadboard(){
   tbody += `</tbody>`;
   $("#lbTable").innerHTML = tbody;
   $$("#lbTable .load-row").forEach(el => el.addEventListener("click", e => {
-    // Don't open detail if user clicked the status pill
+    // Don't open detail if user tapped the status pill or the driver cell
     if (e.target.closest("[data-status-pick]")) return;
+    if (e.target.closest("[data-driver-pick]")) return;
     openDetail(el.dataset.id);
   }));
   $$("#lbTable [data-status-pick]").forEach(el => el.addEventListener("click", e => {
     e.stopPropagation();
     openStatusPopover(el.dataset.statusPick, el);
+  }));
+  $$("#lbTable [data-driver-pick]").forEach(el => el.addEventListener("click", e => {
+    e.stopPropagation();
+    openDriverPopover(el.dataset.driverPick, el);
   }));
 }
 
@@ -2590,6 +2637,48 @@ function openStatusPopover(loadId, anchorEl){
   pop.classList.add("open");
 }
 function closeStatusPopover(){ $("#statusPopover").classList.remove("open"); }
+
+// One-tap driver picker. Works for a load (loads table) or a fuel receipt
+// (fuel table). Tap the driver cell → pick a name → it saves instantly.
+function driverRoster(){
+  const custom = [...new Set(STATE.loads.map(l => l.Driver).filter(Boolean))]
+    .filter(d => !DRIVERS_LIST.includes(d) && d !== "AJX");
+  return [...DRIVERS_LIST, ...custom, "Victor", "AJX"].filter((d,i,a)=>a.indexOf(d)===i);
+}
+function openDriverPopover(id, anchorEl, kind){
+  kind = kind || "load";
+  const rec = kind === "fuel"
+    ? STATE.fuel.find(f => f.ReceiptID === id)
+    : STATE.loads.find(l => l.LoadID === id);
+  if (!rec) return;
+  const pop = $("#driverPopover");
+  const current = rec.Driver || "";
+  const names = driverRoster();
+  pop.innerHTML = names.map(d =>
+    `<button data-name="${escapeHtml(d)}"><span class="swatch" style="background:${current===d?'var(--accent)':'transparent'};border:1px solid var(--border)"></span>${escapeHtml(d)}</button>`
+  ).join("") +
+    `<button data-name="" style="color:var(--muted)"><span class="swatch" style="background:transparent"></span>— clear</button>`;
+  $$("#driverPopover button").forEach(b => {
+    b.classList.toggle("current", (b.dataset.name || "") === current);
+    b.onclick = () => {
+      rec.Driver = b.dataset.name;
+      pop.classList.remove("open");
+      if (kind === "fuel") saveFuel(rec); else saveLoad(rec);  // instant + background save
+    };
+  });
+  // Show it, then place it so the whole list stays on screen — cap the height
+  // and scroll if there are lots of drivers, and open upward near the bottom.
+  pop.style.maxHeight = Math.min(440, window.innerHeight - 24) + "px";
+  pop.style.overflowY = "auto";
+  pop.classList.add("open");
+  const r = anchorEl.getBoundingClientRect();
+  const h = pop.offsetHeight;
+  let top = r.bottom + 4;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - h - 8);
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - 200, r.left)) + "px";
+  pop.style.top  = top + "px";
+}
+function closeDriverPopover(){ $("#driverPopover").classList.remove("open"); }
 
 function isNewFromGmail(l){
   return !l.Driver && l.Source && String(l.Source).toLowerCase().startsWith("email:");
@@ -3316,9 +3405,10 @@ function escapeHtml(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c 
 async function saveLoadSilently(load){
   // Quick save used by inline payroll edits — no full re-render mid-typing.
   load.UpdatedAt = new Date().toISOString();
-  if (!STATE.apiUrl){ saveCache(STATE.loads); showToast("Saved"); return; }
+  saveCache(STATE.loads);
+  if (!STATE.apiUrl){ showToast("Saved"); return; }
   try { await api("upsert", { load }); showToast("Saved"); }
-  catch(e){ showToast("Save failed: " + e.message, true); }
+  catch(e){ queuePending("load", load); showToast("Saved here — syncing…", true); }
 }
 
 /* ---------------- Fuel view ---------------- */
@@ -3372,7 +3462,7 @@ function renderFuel(){
       html += `
         <tr class="load-row${needsDriver?" needs-driver-row":""}" data-id="${f.ReceiptID}">
           <td>${md}</td>
-          <td class="col-driver drv-cell">${needsDriver ? "— assign driver" : escapeHtml(f.Driver)}</td>
+          <td class="col-driver drv-cell drv-pick" data-driver-pick="${f.ReceiptID}" title="Tap to set driver">${needsDriver ? "— tap to assign" : escapeHtml(f.Driver)}</td>
           <td>${escapeHtml(f.Location || "—")}</td>
           <td class="col-gallons">${gal ? gal.toFixed(1) + " gal" : "—"}</td>
           <td class="col-ppg">${ppg ? "$"+ppg.toFixed(3) : "—"}${retail?'<div style="font-size:10px;color:var(--muted)">retail $'+retail.toFixed(3)+'</div>':''}</td>
@@ -3384,7 +3474,14 @@ function renderFuel(){
   }
   html += `</tbody>`;
   table.innerHTML = html;
-  $$("#fuelTable .load-row").forEach(el => el.addEventListener("click", ()=> openFuelModal(STATE.fuel.find(f => f.ReceiptID === el.dataset.id))));
+  $$("#fuelTable .load-row").forEach(el => el.addEventListener("click", e => {
+    if (e.target.closest("[data-driver-pick]")) return;   // tapping driver cell opens the picker instead
+    openFuelModal(STATE.fuel.find(f => f.ReceiptID === el.dataset.id));
+  }));
+  $$("#fuelTable [data-driver-pick]").forEach(el => el.addEventListener("click", e => {
+    e.stopPropagation();
+    openDriverPopover(el.dataset.driverPick, el, "fuel");
+  }));
 
   // Footer totals
   const totalSaved = filtered.reduce((a,f) => a + (Number(f.SavingsAmount)||0), 0);
@@ -3798,6 +3895,13 @@ function bind(){
     if (!pop.classList.contains("open")) return;
     if (e.target.closest("#statusPopover") || e.target.closest("[data-status-pick]")) return;
     closeStatusPopover();
+  });
+  // Close driver popover on outside click
+  document.addEventListener("click", e => {
+    const pop = $("#driverPopover");
+    if (!pop.classList.contains("open")) return;
+    if (e.target.closest("#driverPopover") || e.target.closest("[data-driver-pick]")) return;
+    closeDriverPopover();
   });
 
   $("#btnSaveSettings").addEventListener("click", ()=> {
