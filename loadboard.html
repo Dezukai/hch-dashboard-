@@ -2627,11 +2627,12 @@ function openStatusPopover(loadId, anchorEl){
                       : (load.Status === "Detention" ? "Detention" : "Booked"));
   $$("#statusPopover button").forEach(b => {
     b.classList.toggle("current", b.dataset.status === currentBucket);
-    b.onclick = async () => {
+    b.onclick = () => {
       load.Status = b.dataset.status;
       pop.classList.remove("open");
-      await saveLoadSilently(load);
-      renderLoadboard();
+      saveCache(STATE.loads);
+      renderLoadboard();        // <-- bar recolors instantly
+      saveLoadSilently(load);   // <-- persist in the background (queues + retries if it fails)
     };
   });
   pop.classList.add("open");
